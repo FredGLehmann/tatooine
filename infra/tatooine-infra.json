@@ -1,0 +1,218 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "This template will deploy Tatooine on AWS account using AWS Lambda (NodeJs + async/aws-sdk/gm/uuidv4), Amazon DynamoDB, Amazon Simple Storage Service (s3), Amazon CloudFront, AWS CloudFormation, Amazon Route 53, AWS Identity & Access Management Roles",
+		"Parameters" : {
+			"EnvType" : {
+				"Type" : "String",
+				"Default" : "Test",
+				"AllowedValues" : ["Test", "Prod"],
+				"Description" : "Pick the environment type you're deploying onto. Test/Prod."
+			},
+			"tatooineSourceBucketName" : {
+				"Type" : "String",
+				"Default" : "",
+				"Description" : "Enter the s3 source bucket name."
+			},
+			"tatooineTargetBucketName" : {
+				"Type" : "String",
+				"Default" : "",
+				"Description" : "Enter the s3 target bucket name."
+			},
+			"tatooineDynamoDBTableName" : {
+				"Type" : "String",
+				"Default" : "",
+				"Description" : "Enter the DynamoDb Table name."
+			}
+		},
+		
+		"Resources": {
+			
+			"tatooineLambdaExecutionRole": {
+				"Type": "AWS::IAM::Role",
+				"Properties": {
+					"Path": "/",
+					"RoleName": "tatooineLambda",
+					"AssumeRolePolicyDocument": {
+						"Version": "2012-10-17",
+						"Statement": [
+							{
+								"Action": "sts:AssumeRole",
+								"Principal": {
+									"Service": [
+										"lambda.amazonaws.com"
+									]
+								},
+								"Effect": "Allow"
+							}
+						]
+					}
+				}
+			},
+			
+			"tatooineLambdaRole": {
+				"Type": "AWS::IAM::Policy",
+				"Properties": {
+					"PolicyName": "tatooine",
+					"PolicyDocument": {
+						"Version" : "2012-10-17",
+						"Statement": [
+							{
+								"Sid": "tatooineStatementS3Buckets",
+								"Effect": "Allow",
+								"Action": [
+									"s3:DeleteObject",
+									"s3:GetObject",
+									"s3:ListBucket",
+									"s3:PutObject",
+									"s3:PutObjectAcl"
+								],
+								"Resource": [
+									{ "Fn::Sub" : "arn:aws:s3:::${tatooineSourceBucketName}/*" },
+									{ "Fn::Sub" : "arn:aws:s3:::${tatooineTargetBucketName}/*" }
+								]
+							},
+							{
+									"Sid": "tatooineStatementDynamodbTable",
+									"Effect": "Allow",
+									"Action": [
+											"dynamodb:DeleteItem",
+											"dynamodb:GetItem",
+											"dynamodb:GetRecords",
+											"dynamodb:PutItem",
+											"dynamodb:Query",
+											"dynamodb:Scan",
+											"dynamodb:UpdateItem"
+									],
+									"Resource": { "Fn::Sub" : "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${tatooineDynamoDBTableName}" }
+							},
+							{
+								"Sid": "tatooinePushToCloudwatchLogs",
+								"Effect": "Allow",
+								"Action": [
+										"logs:CreateLogGroup",
+										"logs:CreateLogStream",
+										"logs:DescribeLogGroups",
+										"logs:DescribeLogStreams",
+										"logs:PutLogEvents",
+										"logs:GetLogEvents",
+										"logs:FilterLogEvents"
+								],
+								"Resource": "*"
+							}
+						]
+					},
+					"Roles": [ { "Ref": "tatooineLambdaExecutionRole" } ]
+				}
+			},
+			
+			"tatooineDynamoDBTable": {
+				"Type": "AWS::DynamoDB::Table",
+				"Properties": {
+					"TableName": { "Ref" : "tatooineDynamoDBTableName" },
+					"AttributeDefinitions": [
+						{
+							"AttributeName": "album",
+							"AttributeType": "S"
+						},
+						{
+							"AttributeName": "artist",
+							"AttributeType": "S"
+						},
+						{
+							"AttributeName": "id",
+							"AttributeType": "S"
+						}
+					],
+					"GlobalSecondaryIndexes": [
+						{
+							"IndexName": "artist-album-index",
+							"Projection": {
+								"ProjectionType": "ALL"
+							},
+							"ProvisionedThroughput": {
+								"WriteCapacityUnits": 25,
+								"ReadCapacityUnits": 25
+							},
+							"KeySchema": [
+								{
+									"KeyType": "HASH",
+									"AttributeName": "artist"
+								},
+								{
+									"KeyType": "RANGE",
+									"AttributeName": "album"
+								}
+							]
+						}
+					],
+					"ProvisionedThroughput": {
+						"WriteCapacityUnits": 25,
+						"ReadCapacityUnits": 25
+					},
+					"KeySchema": [
+						{
+							"KeyType": "HASH",
+							"AttributeName": "id"
+						},
+						{
+							"KeyType": "RANGE",
+							"AttributeName": "artist"
+						}
+					]
+				}
+			},
+			
+			"tatooineBucketSource": {
+				"Type" : "AWS::S3::Bucket",
+				"Properties" : {
+					"AccessControl" : "Private",
+					"BucketName" : { "Ref" : "tatooineSourceBucketName" }
+				}
+			},
+			
+			"tatooineBucketTarget": {
+				"Type" : "AWS::S3::Bucket",
+				"Properties" : {
+					"AccessControl" : "PublicRead",
+					"WebsiteConfiguration" : {
+							"IndexDocument" : "index.html",
+					"BucketName" : { "Ref" : "tatooineTargetBucketName" }
+					}
+				}
+			},
+			
+			"tatooineBucketTargetPublicPolicy" : {
+				"Type" : "AWS::S3::BucketPolicy",
+				"Properties" : {
+					"Bucket" : {"Ref" : "tatooineBucketTarget"},
+					"PolicyDocument": {
+						"Statement": [
+							{
+								"Sid": "PublicReadGetObject",
+								"Effect": "Allow",
+								"Principal": "*",
+								"Action": "s3:GetObject",
+								"Resource": { "Fn::Sub": "arn:aws:s3:::${tatooineTargetBucketName}/photos/*.jpg" }
+							},
+							{
+								"Sid": "PublicReadListBucket",
+								"Effect": "Allow",
+								"Principal": "*",
+								"Action": "s3:ListBucket",
+								"Resource": { "Fn::Sub": "arn:aws:s3:::${tatooineTargetBucketName}" }
+							}
+						]
+					}
+				}
+			},
+			
+			"tatooineCloudwatchLogGroup" : {
+				"Type" : "AWS::Logs::LogGroup",
+				"Properties" : {
+					"LogGroupName" : { "Fn::Sub": "/aws/lambda/${tatooineTargetBucketName}" },
+					"RetentionInDays" : "1"
+				}
+			}
+		}
+	}
+}
