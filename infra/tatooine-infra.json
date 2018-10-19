@@ -1,32 +1,21 @@
 {
 	"AWSTemplateFormatVersion": "2010-09-09",
 	"Description": "This template will deploy Tatooine on AWS account using AWS Lambda (NodeJs + async/aws-sdk/gm/uuidv4), Amazon DynamoDB, Amazon Simple Storage Service (s3), Amazon CloudFront, AWS CloudFormation, Amazon Route 53, AWS Identity & Access Management Roles",
-		"Parameters" : {
-			"EnvType" : {
-				"Type" : "String",
-				"Default" : "Test",
-				"AllowedValues" : ["Test", "Prod"],
-				"Description" : "Pick the environment type you're deploying onto. Test/Prod."
-			},
-			"tatooineSourceBucketName" : {
-				"Type" : "String",
-				"Default" : "",
-				"Description" : "Enter the s3 source bucket name."
-			},
-			"tatooineTargetBucketName" : {
-				"Type" : "String",
-				"Default" : "",
-				"Description" : "Enter the s3 target bucket name."
-			},
-			"tatooineDynamoDBTableName" : {
-				"Type" : "String",
-				"Default" : "",
-				"Description" : "Enter the DynamoDb Table name."
+
+		"Mappings": {
+
+			"Constants": {
+				"InstanceValues": {
+					"EnvType": "Test",
+					"SourceBucketName": "tatooine-source",
+					"TargetBucketName": "tatooine-target",
+					"DynamoDBTableName": "tatooine1"
+				}
 			}
 		},
-		
+
 		"Resources": {
-			
+
 			"tatooineLambdaExecutionRole": {
 				"Type": "AWS::IAM::Role",
 				"Properties": {
@@ -48,7 +37,7 @@
 					}
 				}
 			},
-			
+
 			"tatooineLambdaRole": {
 				"Type": "AWS::IAM::Policy",
 				"Properties": {
@@ -104,7 +93,7 @@
 					"Roles": [ { "Ref": "tatooineLambdaExecutionRole" } ]
 				}
 			},
-			
+
 			"tatooineDynamoDBTable": {
 				"Type": "AWS::DynamoDB::Table",
 				"Properties": {
@@ -161,7 +150,7 @@
 					]
 				}
 			},
-			
+
 			"tatooineBucketSource": {
 				"Type" : "AWS::S3::Bucket",
 				"Properties" : {
@@ -169,7 +158,7 @@
 					"BucketName" : { "Ref" : "tatooineSourceBucketName" }
 				}
 			},
-			
+
 			"tatooineBucketTarget": {
 				"Type" : "AWS::S3::Bucket",
 				"Properties" : {
@@ -180,7 +169,7 @@
 					}
 				}
 			},
-			
+
 			"tatooineBucketTargetPublicPolicy" : {
 				"Type" : "AWS::S3::BucketPolicy",
 				"Properties" : {
@@ -205,7 +194,7 @@
 					}
 				}
 			},
-			
+
 			"tatooineCloudwatchLogGroup" : {
 				"Type" : "AWS::Logs::LogGroup",
 				"Properties" : {
@@ -214,5 +203,4 @@
 				}
 			}
 		}
-	}
 }
