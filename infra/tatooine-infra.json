@@ -1,15 +1,16 @@
 {
 	"AWSTemplateFormatVersion": "2010-09-09",
-	"Description": "This template will deploy Tatooine on AWS account using AWS Lambda (NodeJs + async/aws-sdk/gm/uuidv4), Amazon DynamoDB, Amazon Simple Storage Service (s3), Amazon CloudFront, AWS CloudFormation, Amazon Route 53, AWS Identity & Access Management Roles",
+	"Description": "This template will deploy Tatooine TEST on AWS account using AWS Lambda (NodeJs + async/aws-sdk/gm/uuidv4), Amazon DynamoDB, Amazon Simple Storage Service (s3), Amazon CloudFront, AWS CloudFormation, Amazon Route 53, AWS Identity & Access Management Roles",
 
 		"Mappings": {
 
-			"Constants": {
-				"InstanceValues": {
+			"constants": {
+				"tatooinevars" : {
 					"EnvType": "Test",
-					"SourceBucketName": "tatooine-source",
-					"TargetBucketName": "tatooine-target",
-					"DynamoDBTableName": "tatooine1"
+					"tatooineSourceBucketName": "tatooinesrc-test",
+					"tatooineTargetBucketName": "tatooinetgt-test",
+					"tatooineDynamoDBTableName": "tatooine1-test",
+					"tatooineLogGroupName": "tatooine-test"
 				}
 			}
 		},
@@ -56,8 +57,8 @@
 									"s3:PutObjectAcl"
 								],
 								"Resource": [
-									{ "Fn::Sub" : "arn:aws:s3:::${tatooineSourceBucketName}/*" },
-									{ "Fn::Sub" : "arn:aws:s3:::${tatooineTargetBucketName}/*" }
+									{ "Fn::Join": [ "", [ { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineSourceBucketName"]}, "/*"]]},
+									{ "Fn::Join": [ "", [ { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineTargetBucketName"]}, "/*"]]}
 								]
 							},
 							{
@@ -72,7 +73,7 @@
 											"dynamodb:Scan",
 											"dynamodb:UpdateItem"
 									],
-									"Resource": { "Fn::Sub" : "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${tatooineDynamoDBTableName}" }
+									"Resource": { "Fn::Join": [ "", [ "arn:aws:dynamodb:", { "Ref": "AWS::Region"}, ":", { "Ref": "AWS::AccountId"}, ":table/", { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineDynamoDBTableName"]}]]}
 							},
 							{
 								"Sid": "tatooinePushToCloudwatchLogs",
@@ -97,7 +98,7 @@
 			"tatooineDynamoDBTable": {
 				"Type": "AWS::DynamoDB::Table",
 				"Properties": {
-					"TableName": { "Ref" : "tatooineDynamoDBTableName" },
+					"TableName": { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineDynamoDBTableName"]},
 					"AttributeDefinitions": [
 						{
 							"AttributeName": "album",
@@ -155,7 +156,7 @@
 				"Type" : "AWS::S3::Bucket",
 				"Properties" : {
 					"AccessControl" : "Private",
-					"BucketName" : { "Ref" : "tatooineSourceBucketName" }
+					"BucketName" : { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineSourceBucketName"]}
 				}
 			},
 
@@ -165,7 +166,7 @@
 					"AccessControl" : "PublicRead",
 					"WebsiteConfiguration" : {
 							"IndexDocument" : "index.html",
-					"BucketName" : { "Ref" : "tatooineTargetBucketName" }
+					"BucketName" : { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineTargetBucketName"]}
 					}
 				}
 			},
@@ -181,14 +182,14 @@
 								"Effect": "Allow",
 								"Principal": "*",
 								"Action": "s3:GetObject",
-								"Resource": { "Fn::Sub": "arn:aws:s3:::${tatooineTargetBucketName}/photos/*.jpg" }
+								"Resource": { "Fn::Join": ["", [ "arn:aws:s3:::", { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineTargetBucketName"]}, "/photos/*.jpg"]]}
 							},
 							{
 								"Sid": "PublicReadListBucket",
 								"Effect": "Allow",
 								"Principal": "*",
 								"Action": "s3:ListBucket",
-								"Resource": { "Fn::Sub": "arn:aws:s3:::${tatooineTargetBucketName}" }
+								"Resource": { "Fn::Join": ["", [ "arn:aws:s3:::", { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineTargetBucketName"]}]]}
 							}
 						]
 					}
@@ -198,7 +199,7 @@
 			"tatooineCloudwatchLogGroup" : {
 				"Type" : "AWS::Logs::LogGroup",
 				"Properties" : {
-					"LogGroupName" : { "Fn::Sub": "/aws/lambda/${tatooineTargetBucketName}" },
+					"LogGroupName": { "Fn::Join": ["", [ "/aws/lambda/", { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineLogGroupName"]}]]},
 					"RetentionInDays" : "1"
 				}
 			}
