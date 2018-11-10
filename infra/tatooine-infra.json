@@ -3,17 +3,10 @@
 	"Description": "This template will deploy Tatooine TEST on AWS account using AWS Lambda (NodeJs + async/aws-sdk/gm/uuidv4), Amazon DynamoDB, Amazon Simple Storage Service (s3), Amazon CloudFront, AWS CloudFormation, Amazon Route 53, AWS Identity & Access Management Roles",
 
 		"Mappings": {
-
-			"constants": {
-				"tatooinevars" : {
-					"EnvType": "Test",
-					"tatooineSourceBucketName": "tatooinesrc-test",
-					"tatooineTargetBucketName": "tatooinetgt-test",
-					"tatooineDynamoDBTableName": "tatooine1-test",
-					"tatooineLogGroupName": "tatooine-test"
-				}
+			"varsbyenv" : {
+				"Test" : {"tatooineSourceBucketName" : "tatooinesrc-test", "tatooineTargetBucketName" : "tatooinetgt-test", "tatooineDynamoDBTableName": "tatooine1-test", "tatooineLogGroupName": "tatooine-test"}
 			}
-		},
+		}
 
 		"Resources": {
 
@@ -57,8 +50,8 @@
 									"s3:PutObjectAcl"
 								],
 								"Resource": [
-									{ "Fn::Join": [ "", [ { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineSourceBucketName"]}, "/*"]]},
-									{ "Fn::Join": [ "", [ { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineTargetBucketName"]}, "/*"]]}
+									{ "Fn::Join": [ "", [ { "Fn::FindInMap": [ "varsbyenv", "test", "tatooineSourceBucketName"]}, "/*"]]},
+									{ "Fn::Join": [ "", [ { "Fn::FindInMap": [ "varsbyenv", "test", "tatooineTargetBucketName"]}, "/*"]]}
 								]
 							},
 							{
@@ -73,7 +66,7 @@
 											"dynamodb:Scan",
 											"dynamodb:UpdateItem"
 									],
-									"Resource": { "Fn::Join": [ "", [ "arn:aws:dynamodb:", { "Ref": "AWS::Region"}, ":", { "Ref": "AWS::AccountId"}, ":table/", { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineDynamoDBTableName"]}]]}
+									"Resource": { "Fn::Join": [ "", [ "arn:aws:dynamodb:", { "Ref": "AWS::Region"}, ":", { "Ref": "AWS::AccountId"}, ":table/", { "Fn::FindInMap": [ "varsbyenv" , "test" , "tatooineDynamoDBTableName"]}]]}
 							},
 							{
 								"Sid": "tatooinePushToCloudwatchLogs",
@@ -98,7 +91,7 @@
 			"tatooineDynamoDBTable": {
 				"Type": "AWS::DynamoDB::Table",
 				"Properties": {
-					"TableName": { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineDynamoDBTableName"]},
+					"TableName": { "Fn::FindInMap": [ "varsbyenv" , "test" , "tatooineDynamoDBTableName"]},
 					"AttributeDefinitions": [
 						{
 							"AttributeName": "album",
@@ -156,7 +149,7 @@
 				"Type" : "AWS::S3::Bucket",
 				"Properties" : {
 					"AccessControl" : "Private",
-					"BucketName" : { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineSourceBucketName"]}
+					"BucketName" : { "Fn::FindInMap": [ "varsbyenv" , "test" , "tatooineSourceBucketName"]}
 				}
 			},
 
@@ -166,7 +159,7 @@
 					"AccessControl" : "PublicRead",
 					"WebsiteConfiguration" : {
 							"IndexDocument" : "index.html",
-					"BucketName" : { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineTargetBucketName"]}
+					"BucketName" : { "Fn::FindInMap": [ "varsbyenv" , "tatooinevars" , "tatooineTargetBucketName"]}
 					}
 				}
 			},
@@ -182,14 +175,14 @@
 								"Effect": "Allow",
 								"Principal": "*",
 								"Action": "s3:GetObject",
-								"Resource": { "Fn::Join": ["", [ "arn:aws:s3:::", { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineTargetBucketName"]}, "/photos/*.jpg"]]}
+								"Resource": { "Fn::Join": ["", [ "arn:aws:s3:::", { "Fn::FindInMap": [ "varsbyenv" , "test" , "tatooineTargetBucketName"]}, "/photos/*.jpg"]]}
 							},
 							{
 								"Sid": "PublicReadListBucket",
 								"Effect": "Allow",
 								"Principal": "*",
 								"Action": "s3:ListBucket",
-								"Resource": { "Fn::Join": ["", [ "arn:aws:s3:::", { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineTargetBucketName"]}]]}
+								"Resource": { "Fn::Join": ["", [ "arn:aws:s3:::", { "Fn::FindInMap": [ "varsbyenv" , "test" , "tatooineTargetBucketName"]}]]}
 							}
 						]
 					}
@@ -199,7 +192,7 @@
 			"tatooineCloudwatchLogGroup" : {
 				"Type" : "AWS::Logs::LogGroup",
 				"Properties" : {
-					"LogGroupName": { "Fn::Join": ["", [ "/aws/lambda/", { "Fn::FindInMap": [ "constants" , "tatooinevars" , "tatooineLogGroupName"]}]]},
+					"LogGroupName": { "Fn::Join": ["", [ "/aws/lambda/", { "Fn::FindInMap": [ "varsbyenv" , "test" , "tatooineLogGroupName"]}]]},
 					"RetentionInDays" : "1"
 				}
 			}
