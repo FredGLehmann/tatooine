@@ -1,0 +1,12 @@
+{
+    "CloudFrontOriginAccessIdentity": {
+        "CloudFrontOriginAccessIdentityConfig": {
+            "Comment": "AWSPics OAI",
+            "CallerReference": "N05Va25zU3d6QW"
+        },
+        "S3CanonicalUserId": "119677f7c6f16a548abee3845d7a58494b039d815bbc4ee5bbb3f682c426e3b3a623b34e0b1b6ad2a2955778ab6a5285",
+        "Id": "E1SPHFGHPNYYL3"
+    },
+    "ETag": "E9AMNHKIZJTB9",
+    "Location": "https://cloudfront.amazonaws.com/2018-11-05/origin-access-identity/cloudfront/E1SPHFGHPNYYL3"
+}
