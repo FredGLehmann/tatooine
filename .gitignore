@@ -1,3 +1,4 @@
 # Ignore all cert file
 *.pem
 *.ppk
+/dist
