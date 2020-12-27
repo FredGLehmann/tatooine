@@ -1,0 +1,110 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: An AWS CloudFormation stack to create infra for a serverless cognito-protected photo gallery
+
+Parameters:
+  websiteTitle:
+    Description: Title to be displayed on the website
+    Type: String
+  website:
+    Description: Title to be displayed on the website
+    Type: String
+  webBucket:
+    Description: Bucket to store published website
+    Type: String
+  sourceBucket:
+    Description: Bucket to store site data such as original pictures and metadata
+    Type: String
+  resizedBucket:
+    Description: Bucket to store resized pictures
+    Type: String
+
+Resources:
+
+  #
+  # Source bucket creation (the on where original pictures are uploaded)
+  SourceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref sourceBucket
+  #
+  # Resized bucket creation (the on where resized pictures are uploaded by lambda function)
+  ResizedBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref resizedBucket
+
+  #
+  # S3 Web Bucket creation (the on where website files are hosted)
+  WebBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref webBucket
+  WebBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DependsOn: WebBucket
+    Properties:
+      Bucket: !Ref WebBucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject
+            Effect: Allow
+            Resource: !Sub
+              - '${bucket}/*'
+              - bucket: !GetAtt WebBucket.Arn
+            Principal:
+              AWS: !Sub
+                - arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${id}
+                - id: !Ref myoriginAccessIdentity
+  #
+  # Origin access identity creation
+  myoriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties: 
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: tatooine Origin Access Identity
+
+  #
+  # CloudFront Distribution
+  WebDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !Ref website
+        ViewerCertificate:
+          AcmCertificateArn: arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8
+          MinimumProtocolVersion: TLSv1.2_2018
+          SslSupportMethod: sni-only
+        Origins:
+          - DomainName: !Sub
+              - ${webBucket}.s3.amazonaws.com
+              - webBucket: !Ref webBucket
+            Id: S3-WebBucket
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub
+                - origin-access-identity/cloudfront/${id}
+                - id: !Ref myoriginAccessIdentity
+        Enabled: 'true'
+        DefaultRootObject: index.html
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponsePagePath: /error.html
+            ResponseCode: 403
+          - ErrorCode: 404
+            ResponsePagePath: /index.html
+            ResponseCode: 404
+        DefaultCacheBehavior:
+          TargetOriginId: S3-WebBucket
+          TrustedSigners:
+            - self
+          ForwardedValues:
+            QueryString: 'false'
+          ViewerProtocolPolicy: redirect-to-https
+        PriceClass: PriceClass_All
+      Tags:
+        - Key: AppName
+          Value: tatooine
+
