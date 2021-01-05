@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Sample SAM configuration for Lambda@Edge SessionChecker (cloudFront and lambda)
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues:
+      - staging
+      - production
+    Default: staging
+    Description: Stage that can be added to resource names
+
+Mappings:
+  StageMap:
+    staging:
+      name: "labs"
+      alias: "tatooinelabs.zoubix.net"
+      originid:
+      bucketname: "tatooinelabs-web"
+      certarn: "arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8"
+    production:
+      name: "prod"
+      alias: "tatooine.zoubix.net"
+      originid:
+      bucketname:
+      certarn:
+
+Resources:
+    #
+    # Origin access identity creation
+    myoriginAccessIdentity:
+      Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+      Properties:
+        CloudFrontOriginAccessIdentityConfig:
+          Comment: tatooine Origin Access Identity
+
+    #
+    # CloudFront Distribution
+    CFDistribution:
+        Type: AWS::CloudFront::Distribution
+        Properties:
+          Tags:
+            - Key: AppName
+              Value: tatooine
+          DistributionConfig:
+            Enabled: 'true'
+            Comment: !Sub 'CloudFront Distrib for tatooine app - ${Stage}'
+            Aliases:
+              - !FindInMap [StageMap, !Ref Stage, alias]
+            HttpVersion: http2
+            IPV6Enabled: 'false'
+            Restrictions:
+              Georestriction:
+                RestrictionType: whitelist
+                Locations:
+                  - FR
+            DefaultRootObject: index.html
+            CustomErrorResponses:
+              - ErrorCode: 403
+                ResponsePagePath: /error.html
+                ResponseCode: 403
+              - ErrorCode: 404
+                ResponsePagePath: /index.html
+                ResponseCode: 404
+            ViewerCertificate:
+              AcmCertificateArn: !FindInMap [StageMap, !Ref Stage, certarn]
+              MinimumProtocolVersion: TLSv1.2_2018
+              SslSupportMethod: sni-only
+            Origins:
+              - DomainName: !Sub
+                  - ${webBucket}.s3.amazonaws.com
+                  - webBucket: !FindInMap [StageMap, !Ref Stage, bucketname]
+                Id: S3-WebBucket
+                S3OriginConfig:
+                  OriginAccessIdentity: !Sub
+                    - origin-access-identity/cloudfront/${id}
+                    - id: !Ref myoriginAccessIdentity
+            DefaultCacheBehavior:
+              AllowedMethods:
+                - GET, HEAD
+              CachedMethods:
+                - GET, HEAD
+              Compress: 'false'
+              TrustedSigners:
+                - self
+              TargetOriginId: tatooine-webbucket
+              LambdaFunctionAssociations:
+                -
+                  EventType: origin-request
+                  LambdaFunctionARN: !Ref LambdaEdgeFunctionSample.Version
+              ForwardedValues:
+                QueryString: 'false'
+                Headers:
+                  - Origin
+                Cookies:
+                  Forward: none
+              ViewerProtocolPolicy: redirect-to-https
+
+    LambdaEdgeFunctionSample:
+        Type: AWS::Serverless::Function
+        Properties:
+          CodeUri:
+          Role: !GetAtt LambdaEdgeFunctionRole.Arn
+          Runtime: python3.7
+          Handler: index.handler
+          Timeout: 5
+          AutoPublishAlias: live
+
+    LambdaEdgeFunctionRole:
+      Type: "AWS::IAM::Role"
+      Properties:
+          Path: "/"
+          ManagedPolicyArns:
+              - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+          AssumeRolePolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Sid: "AllowLambdaServiceToAssumeRole"
+                Effect: "Allow"
+                Action:
+                  - "sts:AssumeRole"
+                Principal:
+                  Service:
+                    - "lambda.amazonaws.com"
+                    - "edgelambda.amazonaws.com"
+
+Outputs:
+    LambdaEdgeFunctionSampleVersion:
+      Description: Lambda@Edge Sample Function ARN with Version
+      Value: !Ref LambdaEdgeFunctionSample.Version
+
+    CFDistribution:
+      Description: Cloudfront Distribution Domain Name
+      Value: !GetAtt CFDistribution.DomainName

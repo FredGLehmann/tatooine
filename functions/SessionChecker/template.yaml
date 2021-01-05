@@ -19,6 +19,10 @@ Mappings:
       originid:
       bucketname: "tatooinelabs-web"
       certarn: "arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8"
+      sessiontable: "test-congitoSessionManager-SessionTable-13N11D33S9561"
+      sessiontableregion: "eu-west-3"
+      cookiename: "Barrier"
+      loginurl: "https://d1w77mu32577ph.cloudfront.net/_identity/login"
     production:
       name: "prod"
       alias: "tatooine.zoubix.net"
@@ -27,110 +31,49 @@ Mappings:
       certarn:
 
 Resources:
-    #
-    # Origin access identity creation
-    myoriginAccessIdentity:
-      Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
-      Properties:
-        CloudFrontOriginAccessIdentityConfig:
-          Comment: tatooine Origin Access Identity
+    # SessionChecker
+  SessionCheckerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri:
+      Role: !GetAtt SessionCheckerFunctionRole.Arn
+      Runtime: python3.7
+      Handler: handler.handler
+      Timeout: 3
+      MemorySize: 128
+      AutoPublishAlias: live
+      Environment:
+        Variables:
+          SESSION_TABLE:
+            Ref: sessiontable
+          SESSION_TABLE_REGION:
+            Ref: sessiontableregion
+          COOKIE_NAME:
+            Ref: cookiename
+          LOGIN_URL:
+            Ref: loginurl
 
-    #
-    # CloudFront Distribution
-    CFDistribution:
-        Type: AWS::CloudFront::Distribution
-        Properties:
-          Tags:
-            - Key: AppName
-              Value: tatooine
-          DistributionConfig:
-            Enabled: 'true'
-            Comment: !Sub 'CloudFront Distrib for tatooine app - ${Stage}'
-            Aliases:
-              - !FindInMap [StageMap, !Ref Stage, alias]
-            HttpVersion: http2
-            IPV6Enabled: 'false'
-            Restrictions:
-              Georestriction:
-                RestrictionType: whitelist
-                Locations:
-                  - FR
-            DefaultRootObject: index.html
-            CustomErrorResponses:
-              - ErrorCode: 403
-                ResponsePagePath: /error.html
-                ResponseCode: 403
-              - ErrorCode: 404
-                ResponsePagePath: /index.html
-                ResponseCode: 404
-            ViewerCertificate:
-              AcmCertificateArn: !FindInMap [StageMap, !Ref Stage, certarn]
-              MinimumProtocolVersion: TLSv1.2_2018
-              SslSupportMethod: sni-only
-            Origins:
-              - DomainName: !Sub
-                  - ${webBucket}.s3.amazonaws.com
-                  - webBucket: !FindInMap [StageMap, !Ref Stage, bucketname]
-                Id: S3-WebBucket
-                S3OriginConfig:
-                  OriginAccessIdentity: !Sub
-                    - origin-access-identity/cloudfront/${id}
-                    - id: !Ref myoriginAccessIdentity
-            DefaultCacheBehavior:
-              AllowedMethods:
-                - GET, HEAD
-              CachedMethods:
-                - GET, HEAD
-              Compress: 'false'
-              TrustedSigners:
-                - self
-              TargetOriginId: tatooine-webbucket
-              LambdaFunctionAssociations:
-                -
-                  EventType: origin-request
-                  LambdaFunctionARN: !Ref LambdaEdgeFunctionSample.Version
-              ForwardedValues:
-                QueryString: 'false'
-                Headers:
-                  - Origin
-                Cookies:
-                  Forward: none
-              ViewerProtocolPolicy: redirect-to-https
 
-    LambdaEdgeFunctionSample:
-        Type: AWS::Serverless::Function
-        Properties:
-          CodeUri:
-          Role: !GetAtt LambdaEdgeFunctionRole.Arn
-          Runtime: python3.7
-          Handler: index.handler
-          Timeout: 5
-          AutoPublishAlias: live
-
-    LambdaEdgeFunctionRole:
-      Type: "AWS::IAM::Role"
-      Properties:
-          Path: "/"
-          ManagedPolicyArns:
-              - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-          AssumeRolePolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              -
-                Sid: "AllowLambdaServiceToAssumeRole"
-                Effect: "Allow"
-                Action:
-                  - "sts:AssumeRole"
-                Principal:
-                  Service:
-                    - "lambda.amazonaws.com"
-                    - "edgelambda.amazonaws.com"
+  SessionCheckerFunctionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+        Path: "/"
+        ManagedPolicyArns:
+            - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            -
+              Sid: "AllowLambdaServiceToAssumeRole"
+              Effect: "Allow"
+              Action:
+                - "sts:AssumeRole"
+              Principal:
+                Service:
+                  - "lambda.amazonaws.com"
+                  - "edgelambda.amazonaws.com"
 
 Outputs:
-    LambdaEdgeFunctionSampleVersion:
+    SessionCheckerFunctionVersion:
       Description: Lambda@Edge Sample Function ARN with Version
       Value: !Ref LambdaEdgeFunctionSample.Version
-
-    CFDistribution:
-      Description: Cloudfront Distribution Domain Name
-      Value: !GetAtt CFDistribution.DomainName
