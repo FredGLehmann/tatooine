@@ -33,7 +33,7 @@ Resources:
   SessionCheckerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri:
+      CodeUri: SessionChecker/
       Role: !GetAtt SessionCheckerFunctionRole.Arn
       Runtime: python3.7
       Handler: handler.handler
