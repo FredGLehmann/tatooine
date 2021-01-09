@@ -18,24 +18,121 @@ Mappings:
       websiteTitle: "tatooinelabs.zoubix.net"
       website: "tatooinelabs.zoubix.net"
       sourcebucketname: "tatooinelabs-src"
-      resizedbucketname: "tatooinelabs-rs"
+      resizedbucketname: "tatooinelabs-res"
+      webbucketname: "tatooinelabs-web"
+      certarn: "arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8"
     production:
       websiteTitle: "tatooine.zoubix.net"
       website: "tatooine.zoubix.net"
       sourcebucketname: "tatooine-src"
-      resizedbucketname: "tatooine-rs"
+      resizedbucketname: "tatooine-res"
+      webbucketname: "tatooine-web"
 
 Resources:
+
   #
-  # Source bucket creation (the one where original pictures are uploaded)
+  # BUCKETS S3
   SourceBucket:
-    Type: AWS::S3::Bucket
+    Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !FindInMap [StageMap, !Ref Stage, sourcebucketname]
-  #
-  # Resized bucket creation (the one where resized pictures are uploaded by lambda function)
+      PublicAccessBlockConfiguration:
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+        RestrictPublicBuckets: true
+      BucketName: !Ref sourceBucket
+
   ResizedBucket:
-    Type: AWS::S3::Bucket
+    Type: 'AWS::S3::Bucket'
     Properties:
-      BucketName: !FindInMap [StageMap, !Ref Stage, resizedbucketname]
+      PublicAccessBlockConfiguration:
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+        RestrictPublicBuckets: true
+      BucketName: !Ref resizedBucket
+
+  WebBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      PublicAccessBlockConfiguration:
+        IgnorePublicAcls: false
+        BlockPublicPolicy: false
+        BlockPublicAcls: false
+        RestrictPublicBuckets: false
+      BucketName: !Ref webBucket
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+
+  WebBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:GetObject'
+            Resource: !Sub
+              - '${bucket}/*'
+              - bucket: !GetAtt WebBucket.Arn
+            Effect: Allow
+            Principal:
+              AWS: !Sub
+                - >-
+                  arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity
+                  ${id}
+                - id: !Ref MyOriginAccessIdentity
+      Bucket: !Ref WebBucket
+    DependsOn: WebBucket
+
   #
+  # CLOUDFRONT
+  MyOriginAccessIdentity:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub
+          - '${platform} Origin Access Identity'
+          - platform: !Ref platform
+
+  MyWebDistribution:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Origins:
+          - S3OriginConfig:
+              OriginAccessIdentity: !Sub
+                - 'origin-access-identity/cloudfront/${id}'
+                - id: !Ref MyOriginAccessIdentity
+            Id: S3-WebBucket
+            DomainName: !Sub
+              - '${bucket}.s3.${region}.amazonaws.com'
+              - region: !Ref BucketRegion
+                bucket: !Ref webBucket
+        DefaultRootObject: index.html
+        PriceClass: PriceClass_All
+        Enabled: 'true'
+        DefaultCacheBehavior:
+          ViewerProtocolPolicy: redirect-to-https
+          TrustedSigners:
+            - self
+          TargetOriginId: S3-WebBucket
+          ForwardedValues:
+            QueryString: 'false'
+        ViewerCertificate:
+          SslSupportMethod: sni-only
+          AcmCertificateArn: >-
+            arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8
+          MinimumProtocolVersion: TLSv1.2_2018
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponsePagePath: /error.html
+            ResponseCode: 403
+          - ErrorCode: 404
+            ResponsePagePath: /index.html
+            ResponseCode: 404
+        Aliases:
+          - !Ref website
+      Tags:
+        - Value: tatooine
+          Key: AppName

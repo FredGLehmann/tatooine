@@ -17,8 +17,6 @@ Mappings:
       name: "labs"
       alias: "tatooinelabs.zoubix.net"
       originid:
-      webbucketname: "tatooinelabs-web"
-      certarn: "arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8"
       sessiontable: "test-congitoSessionManager-SessionTable-13N11D33S9561"
       sessiontableregion: "eu-west-3"
       cookiename: "Barrier"
@@ -72,88 +70,6 @@ Resources:
                 Service:
                   - "lambda.amazonaws.com"
                   - "edgelambda.amazonaws.com"
-
-  #
-  # Origin access identity creation
-  myoriginAccessIdentity:
-    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
-    Properties:
-      CloudFrontOriginAccessIdentityConfig:
-        Comment: tatooine Origin Access Identity
-
-
-  # S3 Web Bucket creation (the one where website files are hosted)
-  WebBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !FindInMap [StageMap, !Ref Stage, webbucketname]
-      Tags:
-        - Key: AppName
-          Value: tatooine
-        - Key: Env
-          Value: !Ref Stage
-
-  WebBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    DependsOn: WebBucket
-    Properties:
-      Bucket: !Ref WebBucket
-      PolicyDocument:
-        Statement:
-          - Action:
-              - s3:GetObject
-            Effect: Allow
-            Resource: !Sub
-              - '${bucket}/*'
-              - bucket: !GetAtt WebBucket.Arn
-            Principal:
-              AWS: !Sub
-                - arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${id}
-                - id: !Ref myoriginAccessIdentity
-
-  #
-  # CloudFront Distribution
-  WebDistribution:
-    Type: AWS::CloudFront::Distribution
-    Properties:
-      Tags:
-        - Key: AppName
-          Value: tatooine
-        - Key: Env
-          Value: Ref Stage
-      DistributionConfig:
-        Aliases:
-          - !Ref website
-        ViewerCertificate:
-          AcmCertificateArn: !Ref certarn
-          MinimumProtocolVersion: TLSv1.2_2018
-          SslSupportMethod: sni-only
-        Enabled: 'true'
-        DefaultRootObject: index.html
-        CustomErrorResponses:
-          - ErrorCode: 403
-            ResponsePagePath: /error.html
-            ResponseCode: 403
-          - ErrorCode: 404
-            ResponsePagePath: /index.html
-            ResponseCode: 404
-        PriceClass: PriceClass_All
-        Origins:
-          - DomainName: !Sub
-              - ${webBucket}.s3.amazonaws.com
-              - webBucket: !Ref webBucket
-            Id: S3-WebBucket
-            S3OriginConfig:
-              OriginAccessIdentity: !Sub
-                - origin-access-identity/cloudfront/${id}
-                - id: !Ref myoriginAccessIdentity
-        DefaultCacheBehavior:
-          TargetOriginId: S3-WebBucket
-          TrustedSigners:
-          - self
-          ForwardedValues:
-            QueryString: 'false'
-          ViewerProtocolPolicy: redirect-to-https
 
 Outputs:
     SessionCheckerFunctionVersion:

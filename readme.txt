@@ -12,30 +12,35 @@
 # Prerequis :
   Nom DNS pour Cloudfront + certificat
 
-# CF tatooine.yml :
-  template :
-    Params : 
-    Resources :
-      bucket source
-      bucket resized
-      cognito user
-      dynamodb
-    Output :
+# 1/  CF tatooine.yml :
+      template :
+      Params :
+      Resources :
+        bucket source
+        bucket resized
+        bucket web
+        cloudFront (insight : bucket web)
+        Output :
 
-# SAM SessionChecker
-  template :
-    Params :
-    Resources :
-      bucket web
-      Serverless function SessionChecker
-      cloudFront (insight : bucket web / SessionChecker)
-    Output :
-  code :
-    Insight : pool cognito/table dynamodb
+# 2/    SAM SessionChecker (fonction à installer dans us-east-1 !!!)
+        template :
+        Params :
+        Resources :
+          Serverless function SessionChecker
+        Output :
+        Code :
+          Insight : pool cognito/table dynamodb
 
-# SAM SessionManager
-  template :
-    Params :
-    Resources :
-      apiGateway
-      Serverless function SessionManager
+# 3/    SAM SessionManager
+        template :
+        Params :
+        Resources :
+          cognito user pool
+          cognito user pool Domain
+          cognito user pool Client
+          dynamodb
+          apiGateway
+          Serverless function SessionManager
+
+# 4/    Manuellement
+        Completer la config Cloudfront pour SessionChecker
