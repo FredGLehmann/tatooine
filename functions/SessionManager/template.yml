@@ -17,13 +17,13 @@ Mappings:
     staging:
       UserPoolDomainName: "tatooinelabs-auth.zoubix.net"
       UserPoolDomainNameCertArn:
-      CloudfrontDomainName: "tatooine.zoubix.net"
-      CookieName:
+      CloudfrontDomainName: "tatooinelabs.zoubix.net"
+      CookieName: tatooinelabszbx
     production:
-      name: "prod"
-      alias: "tatooine.zoubix.net"
-      originid:
-      webbucketname: "tatooine-web"
+      UserPoolDomainName: "tatooine-auth.zoubix.net"
+      UserPoolDomainNameCertArn:
+      CloudfrontDomainName: "tatooine.zoubix.net"
+      CookieName: tatooinezbx
 
 Parameters:
   WriteAttributes:
