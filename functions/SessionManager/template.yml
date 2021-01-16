@@ -25,6 +25,7 @@ Mappings:
       CloudfrontDomainName: "tatooine.zoubix.net"
       CookieName: tatooinezbx
 
+# ex parametres de l'ancienne version
 Parameters:
   WriteAttributes:
     Type: CommaDelimitedList
@@ -32,13 +33,11 @@ Parameters:
     Type: CommaDelimitedList
   ReadAttributes:
     Type: CommaDelimitedList
-  CloudfrontDomainName:
-    Type: String
-
 
 Resources:
 #
-# COGNITO User Pool
+# COGNITO
+# Cognito User Pool
   MyCognitoUserPool:
     Type: 'AWS::Cognito::UserPool'
     Properties:
@@ -64,6 +63,7 @@ Resources:
       UsernameConfiguration:
         CaseSensitive: true
 
+# Cognito User Pool Domain
   UserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
@@ -72,10 +72,10 @@ Resources:
       CustomDomainConfig:
         CertificateArn: !Ref UserPoolDomainNameCertArn
 
+# Cognito User Pool Client
   UserPoolClient:
     Type: 'AWS::Cognito::UserPoolClient'
     Properties:
-      WriteAttributes: !Ref WriteAttributes
       GenerateSecret: false
       AllowedOAuthScopes:
         - openid
@@ -88,7 +88,6 @@ Resources:
         - code
       CallbackURLs:
         - !Sub 'https://${CloudfrontDomainName}/_identity/auth'
-      ReadAttributes: !Ref ReadAttributes
       SupportedIdentityProviders: !Ref SupportedIdentityProviders
       DefaultRedirectURI: !Sub 'https://${CloudfrontDomainName}/_identity/auth'
 
@@ -133,11 +132,11 @@ Resources:
       Parameters:
         endpointConfigurationTypes: REGIONAL
 
-  CognitoSessionApiDeploymentc0490b2688:
+  CognitoSessionApiDeployment:
     Type: 'AWS::ApiGateway::Deployment'
     Properties:
       RestApiId: !Ref CognitoSessionApi
-      Description: 'RestApi deployment id: c0490b26886ff6c17f2879f43a8eb39007031b77'
+      Description: 'je ne sais pas trop'
       StageName: Stage
 
   #
