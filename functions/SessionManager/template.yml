@@ -7,32 +7,34 @@ Parameters:
   Stage:
     Type: String
     AllowedValues:
-      - staging
+      - stagging
       - production
     Default: staging
     Description: Stage that can be added to resource names
 
 Mappings:
   StageMap:
-    staging:
+    stagging:
+      UserPoolName: "tatooinelabs"
       UserPoolDomainName: "tatooinelabs-auth.zoubix.net"
       UserPoolDomainNameCertArn:
       CloudfrontDomainName: "tatooinelabs.zoubix.net"
       CookieName: tatooinelabszbx
     production:
+      UserPoolName: "tatooine"
       UserPoolDomainName: "tatooine-auth.zoubix.net"
       UserPoolDomainNameCertArn:
       CloudfrontDomainName: "tatooine.zoubix.net"
       CookieName: tatooinezbx
 
 # ex parametres de l'ancienne version
-Parameters:
-  WriteAttributes:
-    Type: CommaDelimitedList
-  SupportedIdentityProviders:
-    Type: CommaDelimitedList
-  ReadAttributes:
-    Type: CommaDelimitedList
+#Parameters:
+#  WriteAttributes:
+#    Type: CommaDelimitedList
+#  SupportedIdentityProviders:
+#    Type: CommaDelimitedList
+#  ReadAttributes:
+#    Type: CommaDelimitedList
 
 Resources:
 #
@@ -41,7 +43,7 @@ Resources:
   MyCognitoUserPool:
     Type: 'AWS::Cognito::UserPool'
     Properties:
-      UserPoolName: !Ref platform
+      UserPoolName: !FindInMap [StageMap,!Ref Stage,UserPoolName]
       AccountRecoverySetting:
         RecoveryMechanisms:
           - Priority: 1
@@ -68,7 +70,7 @@ Resources:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
       UserPoolId: !Ref MyCognitoUserPool
-      Domain: !Ref UserPoolDomainName
+      Domain: !FindInMap [StageMap,!Ref Stage, UserPoolDomainName
       CustomDomainConfig:
         CertificateArn: !Ref UserPoolDomainNameCertArn
 
@@ -136,14 +138,15 @@ Resources:
     Type: 'AWS::ApiGateway::Deployment'
     Properties:
       RestApiId: !Ref CognitoSessionApi
-      Description: 'je ne sais pas trop'
-      StageName: Stage
+      Description: 'Access to Session Manager'
+      StageName: !Ref Stage
 
   #
   # DYNAMO DB
   SessionTable:
     Type: 'AWS::DynamoDB::Table'
     Properties:
+      TableName: !FindInMap [StageMap,!Ref Stage,UserPoolName]
       KeySchema:
         - KeyType: HASH
           AttributeName: session_id
@@ -158,6 +161,10 @@ Resources:
   SessionTableReadPolicy:
     Type: 'AWS::IAM::ManagedPolicy'
     Properties:
+      ManagedPolicyName: 
+      - !Sub
+        - DynamoTatooine${Stage}
+        - Stage: !Ref Stage
       PolicyDocument:
         Version: 2012-10-17
         Statement:
