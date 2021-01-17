@@ -7,14 +7,14 @@ Parameters:
   Stage:
     Type: String
     AllowedValues:
-    - staging
+    - stagging
     - production
-    Default: staging
+    Default: stagging
     Description: Stage that can be added to resource names
 
 Mappings:
   StageMap:
-    staging:
+    stagging:
       websiteTitle: "tatooinelabs.zoubix.net"
       website: "tatooinelabs.zoubix.net"
       sourcebucketname: "tatooinelabs-src"
@@ -40,7 +40,7 @@ Resources:
         BlockPublicPolicy: true
         BlockPublicAcls: true
         RestrictPublicBuckets: true
-      BucketName: !Ref sourceBucket
+      BucketName: !FindInMap [StageMap,!Ref Stage,sourcebucketname]
 
   ResizedBucket:
     Type: 'AWS::S3::Bucket'
@@ -50,7 +50,7 @@ Resources:
         BlockPublicPolicy: true
         BlockPublicAcls: true
         RestrictPublicBuckets: true
-      BucketName: !Ref resizedBucket
+      BucketName: !FindInMap [StageMap,!Ref Stage,resizedbucketname]
 
   WebBucket:
     Type: 'AWS::S3::Bucket'
@@ -60,7 +60,7 @@ Resources:
         BlockPublicPolicy: false
         BlockPublicAcls: false
         RestrictPublicBuckets: false
-      BucketName: !Ref webBucket
+      BucketName: !FindInMap [StageMap,!Ref Stage,webbucketname]
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: error.html
@@ -93,7 +93,7 @@ Resources:
       CloudFrontOriginAccessIdentityConfig:
         Comment: !Sub
           - '${platform} Origin Access Identity'
-          - platform: !Ref platform
+          - platform: !Ref Stage
 
   MyWebDistribution:
     Type: 'AWS::CloudFront::Distribution'
@@ -107,8 +107,8 @@ Resources:
             Id: S3-WebBucket
             DomainName: !Sub
               - '${bucket}.s3.${region}.amazonaws.com'
-              - region: !Ref BucketRegion
-                bucket: !Ref webBucket
+              - region: !Ref 'AWS::Region' 
+                bucket: !FindInMap [StageMap,!Ref Stage,webbucketname]
         DefaultRootObject: index.html
         PriceClass: PriceClass_All
         Enabled: 'true'
@@ -132,7 +132,7 @@ Resources:
             ResponsePagePath: /index.html
             ResponseCode: 404
         Aliases:
-          - !Ref website
+          - !FindInMap [StageMap,!Ref Stage, website]
       Tags:
         - Value: tatooine
           Key: AppName

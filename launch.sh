@@ -1,1 +1,1 @@
-aws cloudformation deploy --stack-name tatooinelabs --template-file tatooine.yml --parameter-overrides websiteTitle=tatooinelabs.zoubix.net webBucket=tatooinelabs-web sourceBucket=tatooinelabs-src resizedBucket=tatooinelabs-rs website=tatooinelabs.zoubix.net
+aws cloudformation deploy --stack-name tatooinelabs --template-file tatooine.yml --parameter-overrides Stage=stagging
