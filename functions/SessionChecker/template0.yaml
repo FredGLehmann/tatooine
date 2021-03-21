@@ -16,15 +16,15 @@ Mappings:
     staging:
       name: "labs"
       alias: "tatooinelabs.zoubix.net"
-      originid:
+      originid: asupprimer
       bucketname: "tatooinelabs-web"
       certarn: "arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8"
     production:
       name: "prod"
       alias: "tatooine.zoubix.net"
-      originid:
-      bucketname:
-      certarn:
+      originid: asupprimer
+      bucketname: tbd
+      certarn: tbd
 
 Resources:
     #
