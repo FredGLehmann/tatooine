@@ -22,7 +22,7 @@
         cloudFront (insight : bucket web)
         Output :
 
-# 2/    SAM SessionChecker (fonction à installer dans us-east-1 !!!)
+# 2/ SAM SessionChecker (fonction à installer dans us-east-1 !!!)
         template :
         Params :
         Resources :
@@ -31,7 +31,7 @@
         Code :
           Insight : pool cognito/table dynamodb
 
-# 3/    SAM SessionManager
+# 3/ SAM SessionManager
         template :
         Params :
         Resources :
@@ -42,5 +42,6 @@
           apiGateway
           Serverless function SessionManager
 
-# 4/    Manuellement
-        Completer la config Cloudfront pour SessionChecker
+# 4/ Manuellement
+        Completer la config Cloudfront avec les infos sur la lambda@edge SessionChecker
+        completer les infos dynamodb et cognito pool dans le code SessionChekcer ????
