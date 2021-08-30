@@ -41,6 +41,11 @@ Resources:
         BlockPublicAcls: true
         RestrictPublicBuckets: true
       BucketName: !FindInMap [StageMap,!Ref Stage,sourcebucketname]
+      Tags:
+        - Key: AppName
+          Value: tatooinelabs
+          Key: Role
+          Value: Bucket input pictures
 
   ResizedBucket:
     Type: 'AWS::S3::Bucket'
@@ -50,7 +55,12 @@ Resources:
         BlockPublicPolicy: true
         BlockPublicAcls: true
         RestrictPublicBuckets: true
-      BucketName: !FindInMap [StageMap,!Ref Stage,resizedbucketname]
+      BucketName: !FindInMap [StageMap
+      Tags:
+        - Key: AppName
+          Value: tatooinelabs
+          Key: Role
+          Value: Place where resized pictures reside
 
   WebBucket:
     Type: 'AWS::S3::Bucket'
@@ -64,6 +74,11 @@ Resources:
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: error.html
+      Tags:
+        - Key: AppName
+          Value: tatooinelabs
+          Key: Role
+          Value: Bucket du site web
 
   WebBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
@@ -107,7 +122,7 @@ Resources:
             Id: S3-WebBucket
             DomainName: !Sub
               - '${bucket}.s3.${region}.amazonaws.com'
-              - region: !Ref 'AWS::Region' 
+              - region: !Ref 'AWS::Region'
                 bucket: !FindInMap [StageMap,!Ref Stage,webbucketname]
         DefaultRootObject: index.html
         PriceClass: PriceClass_All
@@ -136,3 +151,5 @@ Resources:
       Tags:
         - Value: tatooine
           Key: AppName
+
+Output:

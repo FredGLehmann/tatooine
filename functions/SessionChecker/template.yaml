@@ -6,7 +6,7 @@ Parameters:
   Stage:
     Type: String
     AllowedValues:
-      - staging
+      - stagging
       - production
     Default: staging
     Description: Stage that can be added to resource names
@@ -19,7 +19,7 @@ Mappings:
       originid:
       sessiontable: "test-congitoSessionManager-SessionTable-13N11D33S9561"
       sessiontableregion: "eu-west-3"
-      cookiename: "Barrier"
+      cookiename: "tatooinelabszbx"
       loginurl: "https://d1w77mu32577ph.cloudfront.net/_identity/login"
     production:
       name: "prod"
