@@ -15,18 +15,25 @@ Parameters:
 Mappings:
   StageMap:
     stagging:
-      websiteTitle: "tatooinelabs.zoubix.net"
-      website: "tatooinelabs.zoubix.net"
-      sourcebucketname: "tatooinelabs-src"
-      resizedbucketname: "tatooinelabs-res"
-      webbucketname: "tatooinelabs-web"
-      certarn: "arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8"
+      AppName: tatooinelabs
+      websiteTitle: tatooinelabs.zoubix.net
+      website: tatooinelabs.zoubix.net
+      sourcebucketname: tatooinelabs-src
+      resizedbucketname: tatooinelabs-res
+      webbucketname: tatooinelabs-web
+      cloudfrontcertarn: arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8
+      UserPoolDomainName: tatooinelabs.auth.zoubix.net
+      UserPoolDomainCertArn: arn:aws:acm:us-east-1:894260024467:certificate/caf677de-0062-4a13-ad72-e4f7c70344fe
     production:
-      websiteTitle: "tatooine.zoubix.net"
-      website: "tatooine.zoubix.net"
-      sourcebucketname: "tatooine-src"
-      resizedbucketname: "tatooine-res"
-      webbucketname: "tatooine-web"
+      AppName: tatooine
+      websiteTitle: tatooine.zoubix.net
+      website: tatooine.zoubix.net
+      sourcebucketname: tatooine-src
+      resizedbucketname: tatooine-res
+      webbucketname: tatooine-web
+      cloudfrontcertarn: arn:aws:acm:us-east-1:894260024467:certificate/15f57bb8-6527-4c12-bdb0-120e60854af7
+      UserPoolDomainName: tatooine.auth.zoubix.net
+      UserPoolDomainCertArn: arn:aws:acm:us-east-1:894260024467:certificate/8f6f52b0-b209-48b2-8ef2-0cde8acf2065
 
 Resources:
 
@@ -40,11 +47,17 @@ Resources:
         BlockPublicPolicy: true
         BlockPublicAcls: true
         RestrictPublicBuckets: true
-      BucketName: !FindInMap [StageMap,!Ref Stage,sourcebucketname]
+      BucketName: FindInMap
+                  - StageMap
+                  - !Ref Stage
+                  - sourcebucketname
       Tags:
         - Key: AppName
-          Value: tatooinelabs
-          Key: Role
+          Value: !FindInMap
+              - StageMap
+              - !Ref Stage
+              - AppName
+        - Key: Role
           Value: Bucket input pictures
 
   ResizedBucket:
@@ -55,11 +68,17 @@ Resources:
         BlockPublicPolicy: true
         BlockPublicAcls: true
         RestrictPublicBuckets: true
-      BucketName: !FindInMap [StageMap
+      BucketName: !FindInMap
+                  - StageMap
+                  - !Ref Stage
+                  - resizedbucketname
       Tags:
-        - Key: AppName
-          Value: tatooinelabs
-          Key: Role
+        - Key: 'AppName'
+          Value: !FindInMap
+              - StageMap
+              - !Ref Stage
+              - AppName
+        - Key: 'Role'
           Value: Place where resized pictures reside
 
   WebBucket:
@@ -70,14 +89,20 @@ Resources:
         BlockPublicPolicy: false
         BlockPublicAcls: false
         RestrictPublicBuckets: false
-      BucketName: !FindInMap [StageMap,!Ref Stage,webbucketname]
+      BucketName: !FindInMap
+                  - StageMap
+                  - !Ref Stage
+                  - webbucketname
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: error.html
       Tags:
-        - Key: AppName
-          Value: tatooinelabs
-          Key: Role
+        - Key: 'AppName'
+          Value: !FindInMap
+              - StageMap
+              - !Ref Stage
+              - AppName
+        - Key: Role
           Value: Bucket du site web
 
   WebBucketPolicy:
@@ -136,8 +161,10 @@ Resources:
             QueryString: 'false'
         ViewerCertificate:
           SslSupportMethod: sni-only
-          AcmCertificateArn: >-
-            arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8
+          AcmCertificateArn: !FindInMap
+              - StageMap
+              - !Ref Stage
+              - cloudfrontcertarn
           MinimumProtocolVersion: TLSv1.2_2018
         CustomErrorResponses:
           - ErrorCode: 403
@@ -147,9 +174,81 @@ Resources:
             ResponsePagePath: /index.html
             ResponseCode: 404
         Aliases:
-          - !FindInMap [StageMap,!Ref Stage, website]
+          - !FindInMap
+            - StageMap
+            - !Ref Stage
+            - website
       Tags:
-        - Value: tatooine
-          Key: AppName
+        - Key: AppName
+          Value: !FindInMap
+            - StageMap
+            - !Ref Stage
+            - AppName
 
-Output:
+  #
+  # COGNITO
+  CognitoUserPool:
+    Type: 'AWS::Cognito::UserPool'
+    Properties:
+      UserPoolName: !FindInMap
+        - StageMap
+        - !Ref Stage
+        - AppName
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      Policies:
+        PasswordPolicy:
+          RequireNumbers: true
+          RequireLowercase: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 7
+          MinimumLength: 8
+      UsernameAttributes:
+        - email
+      UsernameConfiguration:
+        CaseSensitive: true
+      UserPoolTags:
+        AppName: !FindInMap
+          - StageMap
+          - !Ref Stage
+          - AppName
+
+  UserPoolDomain:
+    Type: 'AWS::Cognito::UserPoolDomain'
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      Domain: !FindInMap
+        - StageMap
+        - !Ref Stage
+        - UserPoolDomainName
+      CustomDomainConfig:
+        CertificateArn: !FindInMap
+        - StageMap
+        - !Ref Stage
+        - UserPoolDomainCertArn
+
+  UserPoolClient:
+    Type: 'AWS::Cognito::UserPoolClient'
+    Properties:
+      GenerateSecret: false
+      AllowedOAuthScopes:
+        - openid
+        - profile
+      UserPoolId: !Ref CognitoUserPool
+      AllowedOAuthFlowsUserPoolClient: true
+      LogoutURLs:
+        - !Sub
+          - https://${URL}/_identity/logout
+          - { URL: !FindInMap ['StageMap', !Ref Stage, 'website'] }
+      AllowedOAuthFlows:
+        - code
+      CallbackURLs:
+        - !Sub
+          - https://${URL}/_identity/auth
+          - { URL: !FindInMap ['StageMap', !Ref Stage, 'website'] }
+      SupportedIdentityProviders: Cognito

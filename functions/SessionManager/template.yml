@@ -39,31 +39,7 @@ Mappings:
 Resources:
 #
 # COGNITO
-# Cognito User Pool
-  MyCognitoUserPool:
-    Type: 'AWS::Cognito::UserPool'
-    Properties:
-      UserPoolName: !FindInMap [StageMap,!Ref Stage,UserPoolName]
-      AccountRecoverySetting:
-        RecoveryMechanisms:
-          - Priority: 1
-            Name: verified_email
-      AdminCreateUserConfig:
-        AllowAdminCreateUserOnly: true
-      Policies:
-        PasswordPolicy:
-          RequireNumbers: true
-          RequireLowercase: true
-          RequireSymbols: true
-          RequireUppercase: true
-          TemporaryPasswordValidityDays: 7
-          MinimumLength: 8
-      UserPoolTags:
-        AppName: tatooine
-      UsernameAttributes:
-        - email
-      UsernameConfiguration:
-        CaseSensitive: true
+# Cognito User Poo
 
 # Cognito User Pool Domain
   UserPoolDomain:
@@ -161,7 +137,7 @@ Resources:
   SessionTableReadPolicy:
     Type: 'AWS::IAM::ManagedPolicy'
     Properties:
-      ManagedPolicyName: 
+      ManagedPolicyName:
       - !Sub
         - DynamoTatooine${Stage}
         - Stage: !Ref Stage

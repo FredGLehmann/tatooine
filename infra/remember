@@ -1,0 +1,30 @@
+CognitoUserPool:
+  Type: 'AWS::Cognito::UserPool'
+  Properties:
+    UserPoolName: !FindInMap
+      - StageMap
+      - !Ref Stage
+      - UserPoolName
+    AccountRecoverySetting:
+      RecoveryMechanisms:
+        - Name: verified_email
+          Priority: 1
+    AdminCreateUserConfig:
+      AllowAdminCreateUserOnly: true
+    Policies:
+      PasswordPolicy:
+        RequireNumbers: true
+        RequireLowercase: true
+        RequireSymbols: true
+        RequireUppercase: true
+        TemporaryPasswordValidityDays: 7
+        MinimumLength: 8
+    UsernameAttributes:
+      - email
+    UsernameConfiguration:
+      CaseSensitive: true
+    UserPoolTags:
+      AppName: !FindInMap
+        - StageMap
+        - !Ref Stage
+        - AppName

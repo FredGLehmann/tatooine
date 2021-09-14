@@ -45,3 +45,16 @@
 # 4/ Manuellement
         Completer la config Cloudfront avec les infos sur la lambda@edge SessionChecker
         completer les infos dynamodb et cognito pool dans le code SessionChekcer ????
+
+## on essaye une autre voie :
+  - toutes les infras ensemble dans un seul template CF (tatooine.yml)
+  - les fonctions dans les templates SAM
+
+# Pré-requis
+  - domaine DNS :
+    auth.tatooine.net :
+      tatooinelabs.auth.tatooine.net CNAME (alias donné par cognito)
+      tatooine.auth.tatooine.net CNAME (alias donné par cognito)
+  - certificat :
+    cloudfront :        tatooinelabs.zoubix.net/tatooine.zoubix.net                 us-east-1
+    cognito domain :    tatooinelabs.auth.zoubix.net/tatooine.auth.zoubix.net   us-east-1
