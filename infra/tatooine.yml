@@ -24,6 +24,8 @@ Mappings:
       cloudfrontcertarn: arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8
       UserPoolDomainName: tatooinelabs.auth.zoubix.net
       UserPoolDomainCertArn: arn:aws:acm:us-east-1:894260024467:certificate/caf677de-0062-4a13-ad72-e4f7c70344fe
+      GoogleApiId: 731630572727-9e94k1vpv4ikqu2tt5ra2gu802cl3bes.apps.googleusercontent.com
+      GoogleApiSecret: nB-Eez0q3x6AOoWUltBbAS0X
     production:
       AppName: tatooine
       websiteTitle: tatooine.zoubix.net
@@ -47,7 +49,7 @@ Resources:
         BlockPublicPolicy: true
         BlockPublicAcls: true
         RestrictPublicBuckets: true
-      BucketName: FindInMap
+      BucketName: !FindInMap
                   - StageMap
                   - !Ref Stage
                   - sourcebucketname
@@ -58,7 +60,7 @@ Resources:
               - !Ref Stage
               - AppName
         - Key: Role
-          Value: Bucket input pictures
+          Value: Bucket input pictures bucket
 
   ResizedBucket:
     Type: 'AWS::S3::Bucket'
@@ -232,6 +234,25 @@ Resources:
         - !Ref Stage
         - UserPoolDomainCertArn
 
+  GoogleIdp:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      ProviderName: Google
+      ProviderDetails:
+        client_id: !FindInMap
+                    - StageMap
+                    - !Ref Stage
+                    - GoogleApiId
+        client_secret: !FindInMap
+                    - StageMap
+                    - !Ref Stage
+                    - GoogleApiSecret
+        authorize_scopes: "profile email openid"
+      ProviderType: Google
+      AttributeMapping:
+        email: "email"
+
   UserPoolClient:
     Type: 'AWS::Cognito::UserPoolClient'
     Properties:
@@ -251,4 +272,5 @@ Resources:
         - !Sub
           - https://${URL}/_identity/auth
           - { URL: !FindInMap ['StageMap', !Ref Stage, 'website'] }
-      SupportedIdentityProviders: Cognito
+      SupportedIdentityProviders:
+        - !Ref GoogleIdp
