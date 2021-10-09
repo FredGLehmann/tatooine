@@ -1,0 +1,12 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "tatooinelabs-sessionmanager"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-su0g0pi2rcx1"
+s3_prefix = "tatooinelabs-sessionmanager"
+region = "eu-west-3"
+confirm_changeset = true
+capabilities = "CAPABILITY_NAMED_IAM"
+parameter_overrides = "Stage=\"stagging\""
+image_repositories = []

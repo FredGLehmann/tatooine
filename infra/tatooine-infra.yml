@@ -60,7 +60,7 @@ Resources:
               - !Ref Stage
               - AppName
         - Key: Role
-          Value: Bucket input pictures bucket
+          Value: Input pictures bucket
 
   ResizedBucket:
     Type: 'AWS::S3::Bucket'
@@ -81,23 +81,20 @@ Resources:
               - !Ref Stage
               - AppName
         - Key: 'Role'
-          Value: Place where resized pictures reside
+          Value: Resized pictures bucket
 
   WebBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
       PublicAccessBlockConfiguration:
-        IgnorePublicAcls: false
-        BlockPublicPolicy: false
-        BlockPublicAcls: false
-        RestrictPublicBuckets: false
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        BlockPublicAcls: true
+        RestrictPublicBuckets: true
       BucketName: !FindInMap
                   - StageMap
                   - !Ref Stage
                   - webbucketname
-      WebsiteConfiguration:
-        IndexDocument: index.html
-        ErrorDocument: error.html
       Tags:
         - Key: 'AppName'
           Value: !FindInMap
@@ -105,7 +102,7 @@ Resources:
               - !Ref Stage
               - AppName
         - Key: Role
-          Value: Bucket du site web
+          Value: Web site hosting
 
   WebBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
@@ -133,9 +130,10 @@ Resources:
     Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
     Properties:
       CloudFrontOriginAccessIdentityConfig:
-        Comment: !Sub
-          - '${platform} Origin Access Identity'
-          - platform: !Ref Stage
+        Comment: !FindInMap
+              - StageMap
+              - !Ref Stage
+              - webbucketname
 
   MyWebDistribution:
     Type: 'AWS::CloudFront::Distribution'
@@ -150,24 +148,25 @@ Resources:
             DomainName: !Sub
               - '${bucket}.s3.${region}.amazonaws.com'
               - region: !Ref 'AWS::Region'
-                bucket: !FindInMap [StageMap,!Ref Stage,webbucketname]
+                bucket: !FindInMap
+                    - StageMap
+                    - !Ref Stage
+                    - webbucketname
         DefaultRootObject: index.html
         PriceClass: PriceClass_All
         Enabled: 'true'
         DefaultCacheBehavior:
           ViewerProtocolPolicy: redirect-to-https
-          TrustedSigners:
-            - self
           TargetOriginId: S3-WebBucket
-          ForwardedValues:
-            QueryString: 'false'
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
         ViewerCertificate:
           SslSupportMethod: sni-only
           AcmCertificateArn: !FindInMap
               - StageMap
               - !Ref Stage
               - cloudfrontcertarn
-          MinimumProtocolVersion: TLSv1.2_2018
+          MinimumProtocolVersion: TLSv1.2_2021
         CustomErrorResponses:
           - ErrorCode: 403
             ResponsePagePath: /error.html
@@ -180,6 +179,15 @@ Resources:
             - StageMap
             - !Ref Stage
             - website
+        Comment: !FindInMap
+              - StageMap
+              - !Ref Stage
+              - website
+        Restrictions:
+          GeoRestriction:
+            RestrictionType: whitelist
+            Locations:
+              - FR
       Tags:
         - Key: AppName
           Value: !FindInMap

@@ -13,13 +13,14 @@
   Nom DNS pour Cloudfront + certificat
 
 # 1/  CF tatooine.yml :
-      template :
-      Params :
+      Params : stage
       Resources :
-        bucket source
-        bucket resized
-        bucket web
-        cloudFront (insight : bucket web)
+        bucket source                           ok
+        bucket resized                          ok
+        bucket web                              ok
+        cloudFront (insight : bucket web)       ok
+        cognito user pool/user domain/idp       ok
+        dynamodb                                tbd
         Output :
 
 # 2/ SAM SessionChecker (fonction à installer dans us-east-1 !!!)
@@ -35,10 +36,6 @@
         template :
         Params :
         Resources :
-          cognito user pool
-          cognito user pool Domain
-          cognito user pool Client
-          dynamodb
           apiGateway
           Serverless function SessionManager
 
@@ -49,12 +46,3 @@
 ## on essaye une autre voie :
   - toutes les infras ensemble dans un seul template CF (tatooine.yml)
   - les fonctions dans les templates SAM
-
-# Pré-requis
-  - domaine DNS :
-    auth.tatooine.net :
-      tatooinelabs.auth.tatooine.net CNAME (alias donné par cognito)
-      tatooine.auth.tatooine.net CNAME (alias donné par cognito)
-  - certificat :
-    cloudfront :        tatooinelabs.zoubix.net/tatooine.zoubix.net                 us-east-1
-    cognito domain :    tatooinelabs.auth.zoubix.net/tatooine.auth.zoubix.net   us-east-1

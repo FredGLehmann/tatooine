@@ -1,0 +1,173 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Tatooine Session Manager
+
+  '
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues:
+    - stagging
+    - production
+    Default: stagging
+    Description: Stage that can be added to resource names
+Mappings:
+  StageMap:
+    stagging:
+      genericname: tatooinelabs
+      UserPoolDomainName: tatooinelabs-auth.zoubix.net
+      UserPoolId: eu-west-3_t9witcw2n
+      CloudFrontDomainName: tatooinelabs.zoubix.net
+      CookieName: tatooinelabszbx
+    production:
+      genericname: tatooine
+      UserPoolDomainName: tatooine-auth.zoubix.net
+      UserPoolId: TBD
+      CloudFrontDomainName: tatooine.zoubix.net
+      CookieName: tatooinezbx
+Globals:
+  Function:
+    Timeout: 3
+    Handler: app.lambdaHandler
+    Runtime: nodejs14.x
+Resources:
+  SessionManagerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub:
+        - ${env}-sessionmanager
+        - env:
+            Fn::FindInMap:
+            - StageMap
+            - Ref: Stage
+            - genericname
+      CodeUri: s3://zbx-tmp/artifact/7e26a1ab45f8b5c373bd5ee80695faf1
+      Role:
+        Fn::GetAtt:
+        - SessionManagerFunctionRole
+        - Arn
+      Environment:
+        Variables:
+          USER_POOL_DOMAIN:
+            Fn::FindInMap:
+            - StageMap
+            - Ref: Stage
+            - UserPoolDomainName
+          COOKIE_NAME:
+            Fn::FindInMap:
+            - StageMap
+            - Ref: Stage
+            - CookieName
+          SESSION_TABLE:
+            Ref: DynamoSessionTable
+          CLOUDFRONT_DOMAIN:
+            Fn::FindInMap:
+            - StageMap
+            - Ref: Stage
+            - CloudFrontDomainName
+          USER_POOL_CLIENT_ID:
+            Fn::FindInMap:
+            - StageMap
+            - Ref: Stage
+            - UserPoolId
+      Events:
+        login:
+          Type: Api
+          Properties:
+            Path: /_identity/login
+            Method: post
+        logout:
+          Type: Api
+          Properties:
+            Path: /_identity/logout
+            Method: post
+        auth:
+          Type: Api
+          Properties:
+            Path: /_identity/auth
+            Method: post
+  DynamoSessionTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName:
+        Fn::Sub:
+        - ${env}-session
+        - env:
+            Fn::FindInMap:
+            - StageMap
+            - Ref: Stage
+            - genericname
+      KeySchema:
+      - KeyType: HASH
+        AttributeName: session_id
+      TimeToLiveSpecification:
+        Enabled: true
+        AttributeName: valid_until
+      AttributeDefinitions:
+      - AttributeName: session_id
+        AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+  SessionTableReadPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName:
+        Fn::Sub:
+        - ${stage}-SessionTableRO
+        - stage:
+            Ref: Stage
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Action:
+          - dynamodb:GetItem
+          Resource:
+          - Fn::GetAtt:
+            - DynamoSessionTable
+            - Arn
+          Effect: Allow
+          Sid: ddb
+  SessionTableReadWritePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName:
+        Fn::Sub:
+        - ${stage}-SessionTableRW
+        - stage:
+            Ref: Stage
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Action:
+          - dynamodb:DeleteItem
+          - dynamodb:GetItem
+          - dynamodb:PutItem
+          - dynamodb:UpdateItem
+          Resource:
+          - Fn::GetAtt:
+            - DynamoSessionTable
+            - Arn
+          Effect: Allow
+          Sid: ddb
+  SessionManagerFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      - Ref: SessionTableReadWritePolicy
+      Tags:
+      - Value: AppName
+        Key:
+          Fn::FindInMap:
+          - StageMap
+          - Ref: Stage
+          - genericname
