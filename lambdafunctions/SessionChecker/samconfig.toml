@@ -2,10 +2,10 @@ version = 0.1
 [default]
 [default.deploy]
 [default.deploy.parameters]
-stack_name = "tatooinelabs-sessionmanager"
-s3_bucket = "zbx-tmp"
-s3_prefix = "tatooinelabs-sessionmanager"
-region = "eu-west-3"
+stack_name = "tatooinelabs-sessionchecker"
+s3_bucket = "zbx-us-tmp"
+s3_prefix = "tatooinelabs-sessionchecker"
+region = "us-east-1"
 confirm_changeset = true
 capabilities = "CAPABILITY_NAMED_IAM"
 parameter_overrides = "Stage=\"stagging\""
