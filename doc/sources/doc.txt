@@ -1,0 +1,41 @@
+= Tatooine documentation
+
+== Déploiement
+
+  . déployer l'infra de base via le template tatooine-infra.yaml :
+    ** déploiement ds n'importe quelle région
+    ** déploiement des briques suivantes :
+      *** buckets s3
+      *** CloudFront
+      *** PoolCognito
+  . déployer session Manager via sam :
+    ** déploiement ds n'importe quelle région
+    ** mettre à jour le template CF avec les infos de la distrib CloudFront et du pool cognito
+    ** Déploiement des briques suivantes :
+      *** DynamoDB table + role iam
+      *** API Gateway
+      *** fonction Lambda
+  . déployer Session checker via SAM :
+    ** fonction à déployer en région us-east-1 (c'est une fonction lambda@edge appelé par CloudFront)
+    ** mettre à jour le template CF avec la région et le nom de la table DynamoDB, l'URL de gestion des login via API Gateway
+  . mettre à jour la distribution CloudFront avec les éléments des 2 lambda ci-dessus :
+    ** récupérez des déploiements précédents :
+      *** l'URL de l'api Gateway
+      *** le stage de l'api Gateway
+      ***
+    ** redirection des prefix /_identity/* vers session manager :
+      *** ds la console CloudFront, sélectionnez la distribution crée au point 1
+      *** dans l'onglet Origin, créer un nouvel Origin
+        **** Origin Domain Name : l'url de l'api Gateway
+        **** Origin path : le stage de l'api Gateway
+        **** HTTPS only
+      *** dans l'onglet Behaviors, créez un nouveau Behavior :
+        **** Path Pattern : /_identity/*
+        **** Origin : l'origine créez précédemment
+        **** Redirect HTTP to HTTPS
+        **** Allow method : GET, HEAD
+        **** Cache Key and Origin requests : Legacy cache + Customize  + tous les TTL à 0
+    ** redirection vers SessionChecker pour toutes les requêtes à destination du bucket S3 du site web :
+      *** 
+
+== To Do
