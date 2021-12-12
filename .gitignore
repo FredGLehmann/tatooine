@@ -2,3 +2,4 @@
 *.pem
 *.ppk
 /dist
+.aws-sam
