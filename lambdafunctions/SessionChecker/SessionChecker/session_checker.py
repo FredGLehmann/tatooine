@@ -21,6 +21,8 @@ class System:
         self.login_url = login_url
 
     def handler(self, event, _):
+        print('GO !!!')
+        print(event)
         request = event['Records'][0]['cf']['request']
         session_id = self.request_session_id(request)
         if session_id:

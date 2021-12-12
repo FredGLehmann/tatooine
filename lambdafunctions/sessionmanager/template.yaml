@@ -29,7 +29,7 @@ Mappings:
 
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 15
     Handler: app.lambdaHandler
     Runtime: nodejs14.x
 
@@ -105,8 +105,11 @@ Resources:
     Type: 'AWS::IAM::ManagedPolicy'
     Properties:
       ManagedPolicyName: !Sub
-                          - ${stage}-SessionTableRO
-                          - stage: !Ref Stage
+              - ${env}-SessionTableRO
+              - env: !FindInMap
+                  - StageMap
+                  - !Ref Stage
+                  - genericname
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -123,8 +126,11 @@ Resources:
     Type: 'AWS::IAM::ManagedPolicy'
     Properties:
       ManagedPolicyName: !Sub
-                          - ${stage}-SessionTableRW
-                          - stage: !Ref Stage
+              - ${env}-SessionTableRW
+              - env: !FindInMap
+                      - StageMap
+                      - !Ref Stage
+                      - genericname
       PolicyDocument:
         Version: 2012-10-17
         Statement:

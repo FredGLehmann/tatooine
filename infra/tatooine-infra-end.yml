@@ -21,7 +21,7 @@ Mappings:
       sourcebucketname: tatooinelabs-src
       resizedbucketname: tatooinelabs-res
       webbucketname: tatooinelabs-web
-      cloudfrontcertarn: arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8
+      MyOriginAccessIdentity: 
       UserPoolDomainName: tatooinelabs.auth.zoubix.net
       UserPoolDomainCertArn: arn:aws:acm:us-east-1:894260024467:certificate/caf677de-0062-4a13-ad72-e4f7c70344fe
       GoogleApiId: 731630572727-9e94k1vpv4ikqu2tt5ra2gu802cl3bes.apps.googleusercontent.com
@@ -103,6 +103,26 @@ Resources:
               - AppName
         - Key: Role
           Value: Web site hosting
+
+  WebBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:GetObject'
+            Resource: !Sub
+              - '${bucket}/*'
+              - bucket: !GetAtt WebBucket.Arn
+            Effect: Allow
+            Principal:
+              AWS: !Sub
+                - >-
+                  arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity
+                  ${id}
+                - id: !Ref MyOriginAccessIdentity
+      Bucket: !Ref WebBucket
+    DependsOn: WebBucket
 
   #
   # COGNITO

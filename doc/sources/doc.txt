@@ -2,27 +2,41 @@
 
 == Déploiement
 
-  . déployer l'infra de base via le template tatooine-infra.yaml :
+  . Action 1 : déployer l'infra de base via le template tatooine-infra.yaml :
     ** déploiement ds n'importe quelle région
     ** déploiement des briques suivantes :
       *** buckets s3
       *** CloudFront
-      *** PoolCognito
-  . déployer session Manager via sam :
+      *** CognitoUserPool
+
+  . Action 2 : déployer session Manager via sam :
     ** déploiement ds n'importe quelle région
     ** mettre à jour le template CF avec les infos de la distrib CloudFront et du pool cognito
     ** Déploiement des briques suivantes :
       *** DynamoDB table + role iam
       *** API Gateway
       *** fonction Lambda
-  . déployer Session checker via SAM :
+
+  . Action 3 : déployer Session checker via SAM :
     ** fonction à déployer en région us-east-1 (c'est une fonction lambda@edge appelé par CloudFront)
     ** mettre à jour le template CF avec la région et le nom de la table DynamoDB, l'URL de gestion des login via API Gateway
-  . mettre à jour la distribution CloudFront avec les éléments des 2 lambda ci-dessus :
+    ** Déploiement des briques suivantes :
+      *** lambdafunction
+
+  . Action 4 : mettre à jour la distribution CloudFront avec les éléments des 2 lambda ci-dessus :
     ** récupérez des déploiements précédents :
-      *** l'URL de l'api Gateway
+      *** Ajouter une origine pour l'URL de l'api Gateway (SessionManager) :
+        **** Create Origin
+        **** Origin Domain Name => URL de l'Api Gateway
+        **** Origin Path => le path correspondant au stage de déploiement de l'API Gateway
+        **** Origin Protocol Policy => HTTPS Only
+      *** Ajouter un Behavior :
+        **** Create Behavior
+        **** Image behavior_api.jpeg
       *** le stage de l'api Gateway
       ***
+
+
     ** redirection des prefix /_identity/* vers session manager :
       *** ds la console CloudFront, sélectionnez la distribution crée au point 1
       *** dans l'onglet Origin, créer un nouvel Origin
@@ -35,7 +49,101 @@
         **** Redirect HTTP to HTTPS
         **** Allow method : GET, HEAD
         **** Cache Key and Origin requests : Legacy cache + Customize  + tous les TTL à 0
-    ** redirection vers SessionChecker pour toutes les requêtes à destination du bucket S3 du site web :
-      *** 
+      *** association lambda@edge/cloudfront
+        **** modifiez le behavior par défaut, en lui ajoutant une association lambda de type "Viewer Request", vers l'ARN de notre fonction lambda@edge SessionChecker
 
-== To Do
+    ** redirection vers SessionChecker pour toutes les requêtes à destination du bucket S3 du site web :
+      ***
+
+== Tests
+  URL d'accès : https://tatooinelabs.zoubix.net
+
+== J'en suis ou ??
+
+  * Pré-requis :
+    ** certificat -> ok
+    ** dns
+
+  * Action 1 :
+    ** buckets -> ok
+    ** CloudFront -> ok
+    ** CognitoUserPool -> ok
+
+  * Action 2 :
+    ** dynamo table -> ok (tatooinelabs-session)
+    ** api gatreway ->
+    ** lambdafunction SessionManager -> ok
+
+  * Action 3 :
+    ** lambdafunction SessionChecker -> ok
+
+  * Action 4 :
+    ** mise à jour de la distrib CloudFront :
+      *** ajouter une Origine pour Session Manager -> ok
+      *** ajouter le behavior correspondant à /-identity/ -> ok
+      *** association cloudfront/lambda@edge -> ok
+
+
+
+
+
+
+== Bloqué par le problème de lambda@edge paas dispo en région Paris, on change la méthode de déploiement :
+  . Action 1 : déployer l'infra de base via le template tatooine-infra.yaml :
+    ** déploiement en région Paris (mais potentiellement dans n'importe quelle région)
+    ** déploiement des briques suivantes :
+      *** buckets s3
+      *** CognitoUserPool
+
+  . Action 2 : déployer session Manager via sam :
+    ** déploiement ds n'importe quelle région
+    ** mettre à jour le template CF avec les infos de la distrib CloudFront et du pool cognito
+    ** Déploiement des briques suivantes :
+      *** DynamoDB table + role iam
+      *** API Gateway
+      *** fonction Lambda
+
+  . Action 3 : déployer Session checker via SAM :
+    ** fonction à déployer en région us-east-1 (c'est une fonction lambda@edge appelé par CloudFront)
+    ** mettre à jour le template CF avec la région et le nom de la table DynamoDB, l'URL de gestion des login via API Gateway
+    ** Déploiement des briques suivantes :
+      *** lambdafunction
+      *** cloudfront
+
+  . Action 4 : mettre à jour la distribution CloudFront avec les éléments des 2 lambda ci-dessus :
+    ** récupérez des déploiements précédents :
+      *** Ajouter une origine pour l'URL de l'api Gateway (SessionManager) :
+        **** Create Origin
+        **** Origin Domain Name => URL de l'Api Gateway
+        **** Origin Path => le path correspondant au stage de déploiement de l'API Gateway
+        **** Origin Protocol Policy => HTTPS Only
+      *** Ajouter un Behavior :
+        **** Create Behavior
+        **** Image behavior_api.jpeg
+      *** le stage de l'api Gateway
+      ***
+
+
+  ** redirection des prefix /_identity/* vers session manager :
+    *** ds la console CloudFront, sélectionnez la distribution crée au point 1
+    *** dans l'onglet Origin, créer un nouvel Origin
+      **** Origin Domain Name : l'url de l'api Gateway
+      **** Origin path : le stage de l'api Gateway
+      **** HTTPS only
+    *** dans l'onglet Behaviors, créez un nouveau Behavior :
+      **** Path Pattern : /_identity/*
+      **** Origin : l'origine créez précédemment
+      **** Redirect HTTP to HTTPS
+      **** Allow method : GET, HEAD
+      **** Cache Key and Origin requests : Legacy cache + Customize  + tous les TTL à 0
+    *** association lambda@edge/cloudfront
+      **** modifiez le behavior par défaut, en lui ajoutant une association lambda de type "Viewer Request", vers l'ARN de notre fonction lambda@edge SessionChecker
+
+  ** redirection vers SessionChecker pour toutes les requêtes à destination du bucket S3 du site web :
+    ***
+
+=== on y va :
+  - tatooine-infra => corrigé et relaunché
+  - SessionManager => pas de modif
+  - SessionChecker => template corrigé (mais pas complètement) et test de relaunch
+  - A terminer : pbde timeout remonté sur la fonction lors du sam deploy.. + ajouter l'origin de l'API gateway + le bahavior pour /_identity/

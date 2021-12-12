@@ -113,9 +113,12 @@ Resources:
     Properties:
       ManagedPolicyName:
         Fn::Sub:
-        - ${stage}-SessionTableRO
-        - stage:
-            Ref: Stage
+        - ${env}-SessionTableRO
+        - env:
+            Fn::FindInMap:
+            - StageMap
+            - Ref: Stage
+            - genericname
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -132,9 +135,12 @@ Resources:
     Properties:
       ManagedPolicyName:
         Fn::Sub:
-        - ${stage}-SessionTableRW
-        - stage:
-            Ref: Stage
+        - ${env}-SessionTableRW
+        - env:
+            Fn::FindInMap:
+            - StageMap
+            - Ref: Stage
+            - genericname
       PolicyDocument:
         Version: 2012-10-17
         Statement:

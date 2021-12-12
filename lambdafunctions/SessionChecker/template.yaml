@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Sample SAM configuration for Lambda@Edge SessionChecker (cloudFront and lambda)
+Description: Lambda@Edge SessionChecker (cloudFront and lambda)
 
 Parameters:
   Stage:
@@ -15,45 +15,26 @@ Mappings:
   StageMap:
     stagging:
       name: labs
+      appname: tatooinelabs
       alias: tatooinelabs.zoubix.net
-      sessiontable: tatooinelabs-session
-      sessiontableregion: eu-west-3
-      cookiename: tatooinelabszbx
-      loginurl: https://tatooinelabs.zoubix.net/_identity/login
+      cloudfrontcertarn: arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8
+      webbucketname: tatooinelabs-web
+      apigatewaydomainname: 5omi9oannd.execute-api.eu-west-3.amazonaws.com
+      apigatewaypath: Prod
+      lambdaedgearn: arn:aws:lambda:us-east-1:894260024467:function:tatooinelabs-sessionchecker-SessionCheckerFunction-hgao0cP3TWDg:9
     production:
       name: prod
       alias: tatooine.zoubix.net
 
 Resources:
-    # SessionChecker
-  SessionCheckerFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: SessionChecker/
-      Role: !GetAtt SessionCheckerFunctionRole.Arn
-      Runtime: python3.7
-      Handler: handler.handler
-      Timeout: 3
-      MemorySize: 128
-      AutoPublishAlias: live
-      Environment:
-        Variables:
-          SESSION_TABLE:
-            Ref: sessiontable
-          SESSION_TABLE_REGION:
-            Ref: sessiontableregion
-          COOKIE_NAME:
-            Ref: cookiename
-          LOGIN_URL:
-            Ref: loginurl
-
-
+  # Session IAM role
   SessionCheckerFunctionRole:
     Type: "AWS::IAM::Role"
     Properties:
         Path: "/"
         ManagedPolicyArns:
             - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+            - "arn:aws:iam::894260024467:policy/stagging-SessionTableRO"
         AssumeRolePolicyDocument:
           Version: "2012-10-17"
           Statement:
@@ -67,7 +48,93 @@ Resources:
                   - "lambda.amazonaws.com"
                   - "edgelambda.amazonaws.com"
 
+  # Lambda@edge function : SessionChecker
+  SessionCheckerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      AutoPublishAlias: theone
+      CodeUri: SessionChecker/
+      Role: !GetAtt SessionCheckerFunctionRole.Arn
+      Runtime: python3.9
+      Handler: handler.handler
+      Timeout: 5
+      MemorySize: 128
+      AutoPublishAlias: live
+
+  # Cloudfront distraibution
+  MyOriginAccessIdentity:
+    Type: 'AWS::CloudFront::CloudFrontOriginAccessIdentity'
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !FindInMap
+              - StageMap
+              - !Ref Stage
+              - webbucketname
+
+  MyWebDistribution:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !FindInMap
+            - StageMap
+            - !Ref Stage
+            - alias
+        DefaultRootObject: index.html
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponsePagePath: /error.html
+            ResponseCode: 403
+          - ErrorCode: 404
+            ResponsePagePath: /index.html
+            ResponseCode: 404
+        PriceClass: PriceClass_All
+        Enabled: 'true'
+        Comment: !FindInMap
+              - StageMap
+              - !Ref Stage
+              - alias
+        ViewerCertificate:
+          SslSupportMethod: sni-only
+          AcmCertificateArn: !FindInMap
+              - StageMap
+              - !Ref Stage
+              - cloudfrontcertarn
+          MinimumProtocolVersion: TLSv1.2_2021
+        Restrictions:
+          GeoRestriction:
+            RestrictionType: whitelist
+            Locations:
+              - FR
+        Origins:
+          - DomainName: !Sub
+                    - '${bucket}.s3.${region}.amazonaws.com'
+                    - region: !Ref 'AWS::Region'
+                      bucket: !FindInMap
+                          - StageMap
+                          - !Ref Stage
+                          - webbucketname
+            Id: S3-WebBucket
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub
+                  - 'origin-access-identity/cloudfront/${id}'
+                  - id: !Ref MyOriginAccessIdentity
+        DefaultCacheBehavior:
+          ViewerProtocolPolicy: redirect-to-https
+          TargetOriginId: S3-WebBucket
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          LambdaFunctionAssociations:
+            - EventType: viewer-request
+              LambdaFunctionARN: !Ref SessionCheckerFunction.Version
+      Tags:
+        - Key: AppName
+          Value: !FindInMap
+            - StageMap
+            - !Ref Stage
+            - appname
+
 Outputs:
     SessionCheckerFunctionVersion:
-      Description: Lambda@Edge Sample Function ARN with Version
-      Value: !Ref LambdaEdgeFunctionSample.Version
+      Description: Lambda@Edge Sample Function ARN
+      Value: !GetAtt SessionCheckerFunction.Arn
