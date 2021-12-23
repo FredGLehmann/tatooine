@@ -15,22 +15,26 @@ Mappings:
   StageMap:
     stagging:
       genericname: tatooinelabs
-      UserPoolDomainName: tatooinelabs-auth.zoubix.net
-      UserPoolId: eu-west-3_t9witcw2n
-      CloudFrontDomainName: tatooinelabs.zoubix.net
-      CookieName: tatooinelabszbx
     production:
       genericname: tatooine
-      UserPoolDomainName: tatooine-auth.zoubix.net
-      UserPoolId: TBD
-      CloudFrontDomainName: tatooine.zoubix.net
-      CookieName: tatooinezbx
-Globals:
-  Function:
-    Timeout: 15
-    Handler: app.lambdaHandler
-    Runtime: nodejs14.x
 Resources:
+  SessionManagerApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name:
+        Fn::Join:
+        - '-'
+        - - Fn::FindInMap:
+            - StageMap
+            - Ref: Stage
+            - genericname
+          - SessionManager
+      StageName: prod
+      EndpointConfiguration: REGIONAL
+      MethodSettings:
+      - LoggingLevel: ERROR
+        ResourcePath: /*
+        HttpMethod: '*'
   SessionManagerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -42,51 +46,36 @@ Resources:
             - StageMap
             - Ref: Stage
             - genericname
-      CodeUri: s3://zbx-tmp/artifact/04c4632a3d97f4be7cfe08646078179a
+      CodeUri: s3://zbx-tmp/SessionManagerFunction/fde48a2f85e546684ce8a012eaf88d71
+      Runtime: python3.9
+      Handler: handler.handler
+      Timeout: 60
       Role:
         Fn::GetAtt:
         - SessionManagerFunctionRole
         - Arn
-      Environment:
-        Variables:
-          USER_POOL_DOMAIN:
-            Fn::FindInMap:
-            - StageMap
-            - Ref: Stage
-            - UserPoolDomainName
-          COOKIE_NAME:
-            Fn::FindInMap:
-            - StageMap
-            - Ref: Stage
-            - CookieName
-          SESSION_TABLE:
-            Ref: DynamoSessionTable
-          CLOUDFRONT_DOMAIN:
-            Fn::FindInMap:
-            - StageMap
-            - Ref: Stage
-            - CloudFrontDomainName
-          USER_POOL_CLIENT_ID:
-            Fn::FindInMap:
-            - StageMap
-            - Ref: Stage
-            - UserPoolId
       Events:
         login:
           Type: Api
           Properties:
             Path: /_identity/login
-            Method: post
+            Method: get
+            RestApiId:
+              Ref: SessionManagerApi
         logout:
           Type: Api
           Properties:
             Path: /_identity/logout
-            Method: post
+            Method: get
+            RestApiId:
+              Ref: SessionManagerApi
         auth:
           Type: Api
           Properties:
             Path: /_identity/auth
-            Method: post
+            Method: get
+            RestApiId:
+              Ref: SessionManagerApi
   DynamoSessionTable:
     Type: AWS::DynamoDB::Table
     Properties:

@@ -29,6 +29,7 @@ class System:
 
     def handler(self, event, _):
         path = event['path']
+        print ("Identity path : ",path)
         if path == '/_identity/login':
             return self.handle_login(event)
         elif path == '/_identity/logout':
@@ -41,28 +42,55 @@ class System:
     def handle_login(self, event):
         query_strings = event.get('queryStringParameters')
         path = query_strings.get('path', '/') if query_strings else '/'
+        print  ("User requested path : ",path)
         return self.redirect_to_login(user_requested_path=path)
 
     def redirect_to_login(self, user_requested_path):
+        # on genere le secret de la session
         secret = new_secret()
+        # on recupere l'id de session calculé
         login_session_id = self.new_login_session(secret)
+        # on cree un truc encodé en base64 contenant le secret de session et le user request path)
         state = base64.urlsafe_b64encode(json.dumps({
             'secret': secret,
             'path': user_requested_path
         }).encode()).decode()
+        # on envoi une redirection vers l'authent cognito, avec les infos de session (session id, validation, session secret, request path)
+        # et avec un cookie name : login_cookie_name et valeur : id de session
+        print ("Set cookie and redirect to Cognito")
         return {
             'statusCode': 307,
             'body': None,
             'headers': {
-                'Set-Cookie': cookie(self.login_cookie_name, cookie_value=login_session_id,
-                                     max_age=FIVE_MINUTES_IN_SECONDS),
+                'Set-Cookie': cookie(self.login_cookie_name, cookie_value=login_session_id, max_age=FIVE_MINUTES_IN_SECONDS),
                 'Location': f'https://{self.user_pool_domain}/login?response_type=code&client_id={self.user_pool_client_id}&redirect_uri={self.redirect_uri}&state={state}'
             }
         }
 
     def new_login_session(self, secret):
+        # on calcul la date de validation et on l'envoi avec le secret genere plus haut
         return self.put_new_session(valid_until=str(time.time() + FIVE_MINUTES_IN_SECONDS),
                                     secret={'S': secret})
+
+
+    def put_new_session(self, valid_until, **kwargs):
+        # on genere l'id de session
+        session_id = new_secret()
+        # on construit id de session, validité et secret
+        item = {
+            'session_id': {'S': session_id},
+            'valid_until': {'N': valid_until},
+        }
+        item.update(kwargs)
+        # on enregistre ça ds la session table
+        self.ddb.put_item(
+            TableName=self.session_table,
+            Item=item,
+            ReturnValues='NONE'
+        )
+        # on renvoi le session_id
+        return session_id
+
 
     def handle_logout(self, event):
         session_id = find_cookie(self.cookie_name, event=event)
@@ -153,20 +181,6 @@ class System:
             ReturnValues='ALL_OLD'
         )['Attributes']
         return item
-
-    def put_new_session(self, valid_until, **kwargs):
-        session_id = new_secret()
-        item = {
-            'session_id': {'S': session_id},
-            'valid_until': {'N': valid_until},
-        }
-        item.update(kwargs)
-        self.ddb.put_item(
-            TableName=self.session_table,
-            Item=item,
-            ReturnValues='NONE'
-        )
-        return session_id
 
     def delete_session(self, session_id):
         try:
