@@ -19,9 +19,9 @@ Mappings:
       alias: tatooinelabs.zoubix.net
       cloudfrontcertarn: arn:aws:acm:us-east-1:894260024467:certificate/31a4ebd7-d79e-4774-a029-4b4a4523f7b8
       webbucketname: tatooinelabs-web
+      s3region: eu-west-3
       apigatewaydomainname: 5omi9oannd.execute-api.eu-west-3.amazonaws.com
-      apigatewaypath: Prod
-      lambdaedgearn: arn:aws:lambda:us-east-1:894260024467:function:tatooinelabs-sessionchecker-SessionCheckerFunction-hgao0cP3TWDg:9
+      apigatewaypath: /Prod
     production:
       name: prod
       alias: tatooine.zoubix.net
@@ -109,7 +109,10 @@ Resources:
         Origins:
           - DomainName: !Sub
                     - '${bucket}.s3.${region}.amazonaws.com'
-                    - region: !Ref 'AWS::Region'
+                    - region: !FindInMap
+                        - StageMap
+                        - !Ref Stage
+                        - s3region
                       bucket: !FindInMap
                           - StageMap
                           - !Ref Stage
@@ -119,6 +122,17 @@ Resources:
               OriginAccessIdentity: !Sub
                   - 'origin-access-identity/cloudfront/${id}'
                   - id: !Ref MyOriginAccessIdentity
+          - DomainName: !FindInMap
+                        - StageMap
+                        - !Ref Stage
+                        - apigatewaydomainname
+            OriginPath: !FindInMap
+                        - StageMap
+                        - !Ref Stage
+                        - apigatewaypath
+            Id: SessionManager
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
         DefaultCacheBehavior:
           ViewerProtocolPolicy: redirect-to-https
           TargetOriginId: S3-WebBucket
@@ -127,12 +141,42 @@ Resources:
           LambdaFunctionAssociations:
             - EventType: viewer-request
               LambdaFunctionARN: !Ref SessionCheckerFunction.Version
+        CacheBehaviors:
+          - PathPattern: /_identity/*
+            TargetOriginId: SessionManager
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+            CachedMethods:
+              - GET
+              - HEAD
+            CachePolicyId: !GetAtt IdentityBehaviorCachePolicy.Id
       Tags:
         - Key: AppName
           Value: !FindInMap
             - StageMap
             - !Ref Stage
             - appname
+
+  IdentityBehaviorCachePolicy:
+    Type: 'AWS::CloudFront::CachePolicy'
+    Properties:
+      CachePolicyConfig:
+        Comment: '0cache'
+        DefaultTTL: 0
+        MaxTTL: 1
+        MinTTL: 0
+        Name: NoCache
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: true
+          EnableAcceptEncodingGzip: true
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
 
 Outputs:
     SessionCheckerFunctionVersion:

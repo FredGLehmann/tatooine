@@ -21,28 +21,38 @@ class System:
         self.login_url = login_url
 
     def handler(self, event, _):
-        print('GO !!!')
-        print(event)
+        print('GO !!!!')
         request = event['Records'][0]['cf']['request']
+        print('Request : ',request)
         session_id = self.request_session_id(request)
         if session_id:
             request['headers']['x-barrier-session-id'] = [{'key': 'X-Barrier-Session-Id', 'value': session_id}]
             return request
         else:
+            print('Redirect to login page')
             return self.redirect_to_login(request)
 
     def request_session_id(self, request):
+        print('Try to find the session_id in request data')
         try:
             for cookie in request['headers'].get('cookie', []):
                 cookie_value = cookie['value']
+                print('Found cookie : ',cookie_value)
                 if self.cookie_name in cookie_value:
                     simple_cookie = cookies.SimpleCookie(input=cookie_value)
                     session_id = simple_cookie.get(self.cookie_name).value
                     session_valid_until = self.fetch_session_valid_until(session_id)
                     now = time.time()
-                    return session_id if session_valid_until > now else None
+                    if session_valid_until > now:
+                        print('Session Id valide')
+                        return login_session_id
+                    else:
+                        print('Session Id non valide')
+                        return None
+                    #return session_id if session_valid_until > now else None
         except Exception as e:
             logging.info("exception for user_identity: %s", e)
+        print('No cookie found')
         return None
 
     @cached(cache=TTLCache(maxsize=1024, ttl=300))
