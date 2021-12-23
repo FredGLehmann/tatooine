@@ -5,3 +5,4 @@
 .aws-sam
 /packages/*
 packages/*
+package.yaml
