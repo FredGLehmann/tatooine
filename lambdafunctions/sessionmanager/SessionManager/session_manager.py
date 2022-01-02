@@ -50,13 +50,15 @@ class System:
         secret = new_secret()
         # on recupere l'id de session calculé
         login_session_id = self.new_login_session(secret)
+        print ("Setting session_id : ",login_session_id)
         # on cree un truc encodé en base64 contenant le secret de session et le user request path)
+        # que l'on va passer en state de l'url Cognito pour le retrouver post authent
         state = base64.urlsafe_b64encode(json.dumps({
             'secret': secret,
             'path': user_requested_path
         }).encode()).decode()
         # on envoi une redirection vers l'authent cognito, avec les infos de session (session id, validation, session secret, request path)
-        # et avec un cookie name : login_cookie_name et valeur : id de session
+        # et avec un cookie contenant l'Id de session (name : login_cookie_name/tatooinelabslogin)
         print ("Set cookie and redirect to Cognito")
         return {
             'statusCode': 307,
@@ -68,29 +70,26 @@ class System:
         }
 
     def new_login_session(self, secret):
-        # on calcul la date de validation et on l'envoi avec le secret genere plus haut
+        # on calcul la date de validation, on demande l'enregistrelent dans la tables des sessions
+        # on renvoi le session_id fourni par put_new_session
         return self.put_new_session(valid_until=str(time.time() + FIVE_MINUTES_IN_SECONDS),
                                     secret={'S': secret})
 
-
     def put_new_session(self, valid_until, **kwargs):
-        # on genere l'id de session
+        # on genere le session_id et on enregistre la session (session_id, secret de session et durée de validité) dans la table des sessions
+        # on renvoi  le session_id
         session_id = new_secret()
-        # on construit id de session, validité et secret
         item = {
             'session_id': {'S': session_id},
             'valid_until': {'N': valid_until},
         }
         item.update(kwargs)
-        # on enregistre ça ds la session table
         self.ddb.put_item(
             TableName=self.session_table,
             Item=item,
             ReturnValues='NONE'
         )
-        # on renvoi le session_id
         return session_id
-
 
     def handle_logout(self, event):
         session_id = find_cookie(self.cookie_name, event=event)
@@ -108,16 +107,60 @@ class System:
         }
 
     def handle_auth(self, event):
+        # on recupere les informations en provenance de Cognito via l'event retransmis par Cloudfront
+        # code : code cognito
+        # state : (infos transmises lors de l'appel a Cognito => fonction redirect_to_login
+        #          - on extrait le secret de session
+        #          - le user reuest path initial
         params = event['queryStringParameters']
         code = params['code']
         event_state = json.loads(base64.urlsafe_b64decode(params['state']).decode())
         secret = event_state['secret']
         event_path = urllib.parse.unquote(event_state['path'])
+        print ("code : ",code)
+        print ("secret : ",secret)
+        print ("path : ",event_path)
+        # on va checker l'identité
         identity = self.verify_identity(event=event, code=code, secret=secret)
         if identity:
             return self.auth_response(identity, event_path)
         else:
             return self.logout_response()
+
+    def verify_identity(self, event, code, secret):
+        print ("Verify identity...")
+        is_valid = self.is_secret_valid(event, secret)
+        if is_valid:
+            print ("Session vallid")
+            return self.fetch_identity(code=code)
+        else:
+            print ("Session invalid")
+            return None
+
+    def is_secret_valid(self, event, event_secret):
+        # on recupere le session_id dans le cookie de login si il existe
+        # on recupere les infos de session da la table des sessions et on vérifi si la session est toujours valide
+        login_session_id = find_cookie(self.login_cookie_name, event=event)
+        print ("Getting session_id from cookie : ",login_session_id)
+        if login_session_id:
+            try:
+                session = self.fetch_and_delete_login_session(login_session_id)
+                session_secret = session['secret']['S']
+                return session_secret == event_secret and time.time() < float(session['valid_until']['N'])
+            except Exception as e:
+                logging.info('could not compare event session to session secret due to %s; secret is invalid', str(e))
+        return False
+
+    def fetch_and_delete_login_session(self, session_id):
+        # on va récuperer dans la base des sessions, la session correspondante
+        #logging.info('fetching %s', session_id)
+        item = self.ddb.delete_item(
+            TableName=self.session_table,
+            Key=session_key(session_id),
+            ReturnValues='ALL_OLD'
+        )['Attributes']
+        print ("item from session table : ",item)
+        return item
 
     def auth_response(self, identity, path):
         session_id = self.new_session(identity)
@@ -135,17 +178,6 @@ class System:
             }
         }
 
-    def new_session(self, identity):
-        return self.put_new_session(valid_until=str(time.time() + DAY_IN_SECOND),
-                                    user_identity={'S': identity})
-
-    def verify_identity(self, event, code, secret):
-        is_valid = self.is_secret_valid(event, secret)
-        if is_valid:
-            return self.fetch_identity(code=code)
-        else:
-            return None
-
     def fetch_identity(self, code):
         try:
             token = requests.post(f'https://{self.user_pool_domain}/oauth2/token', data={
@@ -162,25 +194,10 @@ class System:
             logging.info(str(e))
         return None
 
-    def is_secret_valid(self, event, event_secret):
-        login_session_id = find_cookie(self.login_cookie_name, event=event)
-        if login_session_id:
-            try:
-                session = self.fetch_and_delete_login_session(login_session_id)
-                session_secret = session['secret']['S']
-                return session_secret == event_secret and time.time() < float(session['valid_until']['N'])
-            except Exception as e:
-                logging.info('could not compare event session to session secret due to %s; secret is invalid', str(e))
-        return False
 
-    def fetch_and_delete_login_session(self, session_id):
-        logging.info('fetching %s', session_id)
-        item = self.ddb.delete_item(
-            TableName=self.session_table,
-            Key=session_key(session_id),
-            ReturnValues='ALL_OLD'
-        )['Attributes']
-        return item
+    def new_session(self, identity):
+        return self.put_new_session(valid_until=str(time.time() + DAY_IN_SECOND),
+                                    user_identity={'S': identity})
 
     def delete_session(self, session_id):
         try:
@@ -193,6 +210,8 @@ class System:
 
 
 def find_cookie(name, *, event):
+    # on ceherhce si il existe un cookie avec le nom passé en parmatètre
+    # si il existe on renvoi sa valeur
     for cookie in event['multiValueHeaders'].get('Cookie', []):
         if name in cookie:
             simple_cookie = cookies.SimpleCookie(input=cookie)
