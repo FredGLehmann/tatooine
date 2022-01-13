@@ -70,7 +70,7 @@ class System:
         }
 
     def new_login_session(self, secret):
-        # on calcul la date de validation, on demande l'enregistrelent dans la tables des sessions
+        # on calcul la date de validation, on demande l'enregistrement dans la tables des sessions
         # on renvoi le session_id fourni par put_new_session
         return self.put_new_session(valid_until=str(time.time() + FIVE_MINUTES_IN_SECONDS),
                                     secret={'S': secret})
@@ -112,26 +112,29 @@ class System:
         # state : (infos transmises lors de l'appel a Cognito => fonction redirect_to_login
         #          - on extrait le secret de session
         #          - le user reuest path initial
+        params = None
         params = event['queryStringParameters']
-        code = params['code']
-        event_state = json.loads(base64.urlsafe_b64decode(params['state']).decode())
-        secret = event_state['secret']
-        event_path = urllib.parse.unquote(event_state['path'])
-        print ("code : ",code)
-        print ("secret : ",secret)
-        print ("path : ",event_path)
-        # on va checker l'identité
-        identity = self.verify_identity(event=event, code=code, secret=secret)
-        if identity:
-            return self.auth_response(identity, event_path)
-        else:
+        if params is None:
+            print ("No Query Sting Parameters in Event")
             return self.logout_response()
+        else:
+            code = params['code']
+            event_state = json.loads(base64.urlsafe_b64decode(params['state']).decode())
+            secret = event_state['secret']
+            event_path = urllib.parse.unquote(event_state['path'])
+            print ("secret from event: ",secret)
+            # on va checker l'identité
+            identity = self.verify_identity(event=event, code=code, secret=secret)
+            if identity:
+                print ("identity: ",identity)
+                return self.auth_response(identity, event_path)
+            else:
+                return self.logout_response()
 
     def verify_identity(self, event, code, secret):
-        print ("Verify identity...")
         is_valid = self.is_secret_valid(event, secret)
         if is_valid:
-            print ("Session vallid")
+            print ("Session valid")
             return self.fetch_identity(code=code)
         else:
             print ("Session invalid")
@@ -141,11 +144,13 @@ class System:
         # on recupere le session_id dans le cookie de login si il existe
         # on recupere les infos de session da la table des sessions et on vérifi si la session est toujours valide
         login_session_id = find_cookie(self.login_cookie_name, event=event)
-        print ("Getting session_id from cookie : ",login_session_id)
+        print ("session_id from cookie : ",login_session_id)
         if login_session_id:
             try:
                 session = self.fetch_and_delete_login_session(login_session_id)
                 session_secret = session['secret']['S']
+                print ("secret from session table: ",session_secret)
+                print ("valid_until from session table: ",session['valid_until']['N'])
                 return session_secret == event_secret and time.time() < float(session['valid_until']['N'])
             except Exception as e:
                 logging.info('could not compare event session to session secret due to %s; secret is invalid', str(e))
@@ -159,11 +164,11 @@ class System:
             Key=session_key(session_id),
             ReturnValues='ALL_OLD'
         )['Attributes']
-        print ("item from session table : ",item)
         return item
 
     def auth_response(self, identity, path):
         session_id = self.new_session(identity)
+        print ("Redirect to: https://",self.cloudfront_domain,path)
         return {
             'statusCode': 307,
             'body': None,
