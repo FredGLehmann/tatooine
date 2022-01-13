@@ -44,10 +44,10 @@ class System:
                     session_valid_until = self.fetch_session_valid_until(session_id)
                     now = time.time()
                     if session_valid_until > now:
-                        print('Session Id valide')
-                        return login_session_id
+                        print('Session valide')
+                        return session_id
                     else:
-                        print('Session Id non valide')
+                        print('Session invalide')
                         return None
                     #return session_id if session_valid_until > now else None
         except Exception as e:
