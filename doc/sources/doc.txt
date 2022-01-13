@@ -122,11 +122,25 @@
 
 === Des infos sur le méchanisme de login
 
-  - info de session avant cognito enregistré dans la table de session
-    secret (aussi passé en paramètre dans le state de l'URL)
+== Pas encore authentifié
+  session_checker -> session_manager (/login) -> cognito -> session_manager (/auth) -> session_checker -> bucket s3
+  - session_manager (/login) : info de session avant cognito enregistré dans la table de session
+    secret (aussi passé en paramètre dans le STATE de l'url)
+    path (path demandé initialement par le user) - (aussi passé en paramètre dans le STATE de l'url)
     session_id (aussi enregistré dans le cookie de login)
-    durée de validité
-  - vérification des infos après cognito :
-    session_id récupéré du cookie de login
-    info de session récupéré de la table de session (grâce au session_id du cookie)
-    on compare le secret issu du state avec celui issu de la table de session et on verifi si la durée de validité est toujours ok
+    valid_until (durée de validité)
+    session_id, secret et date de validitée sont enregistrés dans la table de session
+  - session_manager (/auth) : vérification des infos après cognito :
+    secret1 (issu du STATE de l'url)
+    session_id (récupéré du cookie de login)
+    valid_until (durée de validité récupéré ds la table de session via le session_id)
+    secret2 (récupéré de la table de session via le session_id)
+    on compare le secret1 issu du state et le secret 2 issu de la table des sessions et on verifi si la durée de validité est toujours ok
+    si c'est bon, on va demander à Cognito l'identité de l'utilisateur
+    on enregistre dans la table des sessions : un nouveau session_id, la durée de validité de la session et l'identité utilisateur (issu de Cognito)
+    on redirige le navigateur vers le path initialement demandé et en supprimant le cookie de login et en créant un cookie de session (contenant session_id et durée de validité)
+  - session_checker :
+    on récupère le session_id du cookie de session, seulement si la durée de validité est bonne, sinon on redirige vers le login (session_manager/login)
+    si ok, on redirige en modifiant le header pour y inclure le session_id en tant que "x-barrier-session-id"
+
+    ToDo : tester suite à la modif de Session_checker sur le nom de variable ligne 48
