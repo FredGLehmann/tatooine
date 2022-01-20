@@ -3,6 +3,5 @@
 *.ppk
 /dist
 .aws-sam
-/packages/*
 packages/*
 package.yaml
