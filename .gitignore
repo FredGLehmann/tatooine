@@ -1,7 +1,6 @@
-# Ignore all cert file
 *.pem
 *.ppk
 /dist
 .aws-sam
-packages/*
+**/packages/*
 package.yaml
